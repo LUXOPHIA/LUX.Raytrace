@@ -2,7 +2,7 @@
 
 interface //#################################################################### ■
 
-uses LUX, LUX.D3, LUX.Graph.Tree, LUX.Raytrace, LUX.Raytrace.Hit;
+uses LUX, LUX.D3, LUX.Graph.Tree, LUX.Raytrace;
 
 type //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$【型】
 
@@ -20,6 +20,7 @@ type //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
      protected
        ///// メソッド
        function _RayCast( const LocalRay_:TSingleRay3D ) :TRayHit; override;
+       function HitBoundBox( const WorldRay_:TSingleRay3D ) :Boolean; override;
      public
      end;
 
@@ -83,9 +84,7 @@ begin
 
           if T > _EPSILON_ then
           begin
-               Result := TRayHitNorTex2D.Create;
-
-               with TRayHitNorTex2D( Result ) do
+               with Result do
                begin
                     _Obj := Self;
                     _Len := T;
@@ -94,6 +93,11 @@ begin
                end;
           end;
      end;
+end;
+
+function TRayGround.HitBoundBox( const WorldRay_:TSingleRay3D ) :Boolean;
+begin
+     Result := True;
 end;
 
 //&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&& public
@@ -108,17 +112,15 @@ end;
 
 function TRaySky._RayCast( const LocalRay_:TSingleRay3D ) :TRayHit;
 begin
-     Result := TRayHitNorTex2D.Create;
-
-     with TRayHitNorTex2D( Result ) do
+     with Result do
      begin
           _Obj := Self;
           _Len := Single.MaxValue;
           _Pos := LocalRay_.GoPos( _Len );
           _Nor := -LocalRay_.Vec;
 
-          _Tex2D.X := ( Pi + ArcTan2( +LocalRay_.Vec.Z, -LocalRay_.Vec.X ) ) / Pi2;
-          _Tex2D.Y := ArcCos( LocalRay_.Vec.Y ) / Pi;
+          _Tex.X := ( Pi + ArcTan2( +LocalRay_.Vec.Z, -LocalRay_.Vec.X ) ) / Pi2;
+          _Tex.Y := ArcCos( LocalRay_.Vec.Y ) / Pi;
      end;
 end;
 
@@ -143,30 +145,30 @@ end;
 
 function TRaySphere._RayCast( const LocalRay_:TSingleRay3D ) :TRayHit;
 var
-   B, C, D, D2, T0, T1 :Single;
+   A, B, C, D, D2, T0, T1 :Single;
 begin
-     Result := nil;
+     Result._Obj := nil;
 
      with LocalRay_ do
      begin
+          A := Vec.Siz2;
           B := DotProduct( Pos, Vec );
           C := Pos.Siz2 - Pow2( _Radius );
      end;
 
-     D := Pow2( B ) - C;
+     D := Pow2( B ) - A * C;
 
      if D > 0 then
      begin
           D2 := Roo2( D );
 
-          T0 := -B - D2;
-          T1 := -B + D2;
+          T1 := ( -B + D2 ) / A;
 
           if T1 > _EPSILON_ then
           begin
-               Result := TRayHit.Create;
+               T0 := ( -B - D2 ) / A;
 
-               with TRayHitNor( Result ) do
+               with Result do
                begin
                     _Obj := Self;
 
