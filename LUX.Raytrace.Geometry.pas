@@ -2,7 +2,7 @@
 
 interface //#################################################################### ■
 
-uses LUX, LUX.D3, LUX.Graph.Tree, LUX.Raytrace;
+uses LUX, LUX.D1, LUX.D2, LUX.D3, LUX.Graph.Tree, LUX.Raytrace;
 
 type //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$【型】
 
@@ -20,8 +20,9 @@ type //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
      protected
        ///// メソッド
        function _RayCast( const LocalRay_:TSingleRay3D ) :TRayHit; override;
-       function HitBoundBox( const WorldRay_:TSingleRay3D ) :Boolean; override;
      public
+       ///// メソッド
+       function HitBoundBox( const WorldRay_:TSingleRay3D ) :Boolean; override;
      end;
 
      //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TRaySky
@@ -48,6 +49,42 @@ type //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
        constructor Create; override;
        ///// プロパティ
        property Radius :Single read _Radius write SetRadius;
+     end;
+
+     //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TRayImplicit
+
+     TRayImplicit = class( TRayGeometry )
+     private
+     protected
+       _IteraN :Integer;
+       ///// メソッド
+       function DistanceFunc( const P_:TdSingle3D ) :TdSingle; virtual; abstract;
+       function _RayCast( const LocalRay_:TSingleRay3D ) :TRayHit; override;
+     public
+       constructor Create; override;
+       ///// プロパティ
+       property IteraN :Integer read _IteraN write _IteraN;
+     end;
+
+     //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TRayTorus
+
+     TRayTorus = class( TRayImplicit )
+     private
+       ///// メソッド
+       procedure MakeAABB;
+     protected
+       _LingR :Single;
+       _PipeR :Single;
+       ///// アクセス
+       procedure SetLingR( const LingR_:Single );
+       procedure SetPipeR( const PipeR_:Single );
+       ///// メソッド
+       function DistanceFunc( const P_:TdSingle3D ) :TdSingle; override;
+     public
+       constructor Create; override;
+       ///// プロパティ
+       property LingR :Single read _LingR write SetLingR;
+       property PipeR :Single read _PipeR write SetPipeR;
      end;
 
 //const //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$【定数】
@@ -189,6 +226,121 @@ begin
      inherited;
 
      _Radius := 1;
+end;
+
+//%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TRayImplicit
+
+//&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&& private
+
+//&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&& protected
+
+/////////////////////////////////////////////////////////////////////// メソッド
+
+function TRayImplicit._RayCast( const LocalRay_:TSingleRay3D ) :TRayHit;
+var
+   L, T, D0, D1 :Single;
+   V :TSingle3D;
+   N :Integer;
+   P :TdSingle3D;
+begin
+     L := LocalRay_.Vec.Size;
+     V := LocalRay_.Vec / L;
+
+     D0 := DistanceFunc( LocalRay_.Pos ).o;
+
+     T := D0;
+
+     for N := 1 to _IteraN do
+     begin
+          P := LocalRay_.Pos + V * T;
+
+          D1 := DistanceFunc( P ).o;
+
+          T := T + D1;
+
+          if ( D1 < D0 ) and ( D1 < _EPSILON_ ) then
+          begin
+               with Result do
+               begin
+                    _Obj := Self;
+                    _Len := T / L;
+                    _Pos := P;
+                    _Nor := Nabla( DistanceFunc, _Pos ).Unitor;
+               end;
+
+               Exit;
+          end;
+
+          D0 := D1;
+     end;
+end;
+
+//&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&& public
+
+constructor TRayImplicit.Create;
+begin
+     inherited;
+
+     _IteraN := 100;
+end;
+
+//%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TRayTorus
+
+//&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&& private
+
+/////////////////////////////////////////////////////////////////////// メソッド
+
+procedure TRayTorus.MakeAABB;
+var
+   R :Single;
+begin
+     R := _LingR + _PipeR;
+
+     LocalAABB := TSingleArea3D.Create( -R, -R, -_PipeR,
+                                        +R, +R, +_PipeR );
+end;
+
+//&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&& protected
+
+/////////////////////////////////////////////////////////////////////// アクセス
+
+procedure TRayTorus.SetLingR( const LingR_:Single );
+begin
+     _LingR := LingR_;
+
+     MakeAABB;
+end;
+
+procedure TRayTorus.SetPipeR( const PipeR_:Single );
+begin
+     _PipeR := PipeR_;
+
+     MakeAABB;
+end;
+
+/////////////////////////////////////////////////////////////////////// メソッド
+
+function TRayTorus.DistanceFunc( const P_:TdSingle3D ) :TdSingle;
+var
+   A, B :TdSingle2D;
+begin
+     A.X := P_.X;
+     A.Y := P_.Y;
+
+     B.X := A.Size - _LingR;
+     B.Y := P_.Z;
+
+     Result := B.Size - _PipeR;
+end;
+
+//&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&& public
+
+constructor TRayTorus.Create;
+begin
+     inherited;
+
+     _LingR := 2;
+     _PipeR := 1;
 end;
 
 //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$【ルーチン】
