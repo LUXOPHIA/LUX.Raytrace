@@ -18,7 +18,7 @@ type //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
      protected
      public
        ///// メソッド
-       function Scatter( const WorldRay_:TSingleRay3D; const RayN_:Integer; const Hit_:TRayHit ) :TSingleRGB; override;
+       function Scatter( const WorldEmt_:TRayHit; const WorldRay_:TRayRay; const WorldHit_:TRayHit ) :TSingleRGB; override;
      end;
 
      //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TMaterialTexColor
@@ -33,7 +33,7 @@ type //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
        ///// プロパティ
        property Texture :TTexture2D read _Texture;
        ///// メソッド
-       function Scatter( const WorldRay_:TSingleRay3D; const RayN_:Integer; const Hit_:TRayHit ) :TSingleRGB; override;
+       function Scatter( const WorldEmt_:TRayHit; const WorldRay_:TRayRay; const WorldHit_:TRayHit ) :TSingleRGB; override;
      end;
 
      //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TMaterialDiff
@@ -47,7 +47,7 @@ type //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
        ///// プロパティ
        property DiffRatio :TSingleRGB read _DiffRatio write _DiffRatio;
        ///// メソッド
-       function Scatter( const WorldRay_:TSingleRay3D; const RayN_:Integer; const Hit_:TRayHit ) :TSingleRGB; override;
+       function Scatter( const WorldEmt_:TRayHit; const WorldRay_:TRayRay; const WorldHit_:TRayHit ) :TSingleRGB; override;
      end;
 
      //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TMaterialMirror
@@ -61,7 +61,7 @@ type //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
        ///// プロパティ
        property SpecRatio :TSingleRGB read _SpecRatio write _SpecRatio;
        ///// メソッド
-       function Scatter( const WorldRay_:TSingleRay3D; const RayN_:Integer; const Hit_:TRayHit ) :TSingleRGB; override;
+       function Scatter( const WorldEmt_:TRayHit; const WorldRay_:TRayRay; const WorldHit_:TRayHit ) :TSingleRGB; override;
      end;
 
      //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TMaterialGlass
@@ -77,7 +77,7 @@ type //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
        property RefrIndex :Single     read _RefrIndex write _RefrIndex;
        property TranRatio :TSingleRGB read _TranRatio write _TranRatio;
        ///// メソッド
-       function Scatter( const WorldRay_:TSingleRay3D; const RayN_:Integer; const Hit_:TRayHit ) :TSingleRGB; override;
+       function Scatter( const WorldEmt_:TRayHit; const WorldRay_:TRayRay; const WorldHit_:TRayHit ) :TSingleRGB; override;
      end;
 
 //const //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$【定数】
@@ -88,7 +88,7 @@ type //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
 
 implementation //############################################################### ■
 
-uses System.Math,
+uses System.SysUtils, System.Math,
      LUX.D2, LUX.Geometry.D3;
 
 //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$【レコード】
@@ -105,9 +105,9 @@ uses System.Math,
 
 /////////////////////////////////////////////////////////////////////// メソッド
 
-function TMaterialRGB.Scatter( const WorldRay_:TSingleRay3D; const RayN_:Integer; const Hit_:TRayHit ) :TSingleRGB;
+function TMaterialRGB.Scatter( const WorldEmt_:TRayHit; const WorldRay_:TRayRay; const WorldHit_:TRayHit ) :TSingleRGB;
 begin
-     with Hit_ do
+     with WorldHit_ do
      begin
           Result.R := ( 1 + Nor.X ) / 2;
           Result.G := ( 1 + Nor.Y ) / 2;
@@ -139,9 +139,9 @@ end;
 
 /////////////////////////////////////////////////////////////////////// メソッド
 
-function TMaterialTexColor.Scatter( const WorldRay_:TSingleRay3D; const RayN_:Integer; const Hit_:TRayHit ) :TSingleRGB;
+function TMaterialTexColor.Scatter( const WorldEmt_:TRayHit; const WorldRay_:TRayRay; const WorldHit_:TRayHit ) :TSingleRGB;
 begin
-     with Hit_ do
+     with WorldHit_ do
      begin
           Result := _Texture.Interp( TSingle2D.Create( Tex.X, Tex.Y ) );
      end;
@@ -164,16 +164,16 @@ end;
 
 /////////////////////////////////////////////////////////////////////// メソッド
 
-function TMaterialDiff.Scatter( const WorldRay_:TSingleRay3D; const RayN_:Integer; const Hit_:TRayHit ) :TSingleRGB;
+function TMaterialDiff.Scatter( const WorldEmt_:TRayHit; const WorldRay_:TRayRay; const WorldHit_:TRayHit ) :TSingleRGB;
 var
    L :TRayLight;
-   A :TSingleRay3D;
+   A :TRayRay;
 //･･････････････････････････････････････････････････････････････････････････････
      procedure Diff;
      var
         D :Single;
      begin
-          D := DotProduct( Hit_.Nor, A.Vec );  if D < 0 then D := 0;
+          D := DotProduct( WorldHit_.Nor, A.Ray.Vec );  if D < 0 then D := 0;
 
           Result := Result + D * L.Color * _DiffRatio;
      end;
@@ -188,17 +188,19 @@ begin
      begin
           L := World.Lights[ I ];
 
-          H := L.RayJoin( Hit_.Pos );
+          L.RayJoin( WorldHit_, H );
 
           with A do
           begin
-               Pos := Hit_.Pos;
-               Vec := Hit_.Pos.UnitorTo( H.Pos );
+               Emt     := @WorldHit_;
+               Ord     := WorldRay_.Ord;
+               Ray.Pos := WorldHit_.Pos;
+               Ray.Vec := WorldHit_.Pos.UnitorTo( H.Pos );
+               Len     := 0;
+               Hit     := nil;
           end;
 
-          S := World.RayCasts( A );
-
-          if Assigned( S.Obj ) then
+          if World.RayCasts( WorldHit_, A, S ) then
           begin
                if S.Len >= H.Len then Diff;
           end
@@ -223,14 +225,21 @@ end;
 
 /////////////////////////////////////////////////////////////////////// メソッド
 
-function TMaterialMirror.Scatter( const WorldRay_:TSingleRay3D; const RayN_:Integer; const Hit_:TRayHit ) :TSingleRGB;
+function TMaterialMirror.Scatter( const WorldEmt_:TRayHit; const WorldRay_:TRayRay; const WorldHit_:TRayHit ) :TSingleRGB;
 var
-   ReA :TSingleRay3D;
+   ReA :TRayRay;
 begin
-     ReA.Pos := Hit_.Pos;
-     ReA.Vec := Reflect( WorldRay_.Vec, Hit_.Nor );
+     with ReA do
+     begin
+          Emt     := @WorldHit_;
+          Ord     := WorldRay_.Ord;
+          Ray.Pos := WorldHit_.Pos;
+          Ray.Vec := Reflect( WorldRay_.Ray.Vec, WorldHit_.Nor );
+          Len     := 0;
+          Hit     := nil;
+     end;
 
-     Result := _SpecRatio * World.Raytrace( ReA, RayN_ );
+     Result := _SpecRatio * World.Raytrace( WorldHit_, ReA );
 end;
 
 //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TMaterialGlass
@@ -251,34 +260,49 @@ end;
 
 /////////////////////////////////////////////////////////////////////// メソッド
 
-function TMaterialGlass.Scatter( const WorldRay_:TSingleRay3D; const RayN_:Integer; const Hit_:TRayHit ) :TSingleRGB;
+function TMaterialGlass.Scatter( const WorldEmt_:TRayHit; const WorldRay_:TRayRay; const WorldHit_:TRayHit ) :TSingleRGB;
 var
    ReI, ReW :Single;
    Nor :TSingle3D;
-   ReA, RaA :TSingleRay3D;
+   ReA, RaA :TRayRay;
    ReC, RaC :TSingleRGB;
 begin
-     if DotProduct( WorldRay_.Vec, Hit_.Nor ) < 0 then
+     if DotProduct( WorldRay_.Ray.Vec, WorldHit_.Nor ) < 0 then
      begin
           ReI := _RefrIndex;
-          Nor := +Hit_.Nor;
+          Nor := +WorldHit_.Nor;
      end
      else
      begin
           ReI := 1 / _RefrIndex;
-          Nor := -Hit_.Nor;
+          Nor := -WorldHit_.Nor;
      end;
 
-     ReA.Pos := Hit_.Pos;
-     ReA.Vec := Reflect( WorldRay_.Vec, Nor );
-
-     ReC := World.Raytrace( ReA, RayN_ );
-
-     if Refract( WorldRay_.Vec, Nor, ReI, RaA.Vec, ReW ) then
+     with ReA do
      begin
-          RaA.Pos := Hit_.Pos;
+          Emt     := @WorldHit_;
+          Ord     := WorldRay_.Ord;
+          Ray.Pos := WorldHit_.Pos;
+          Ray.Vec := Reflect( WorldRay_.Ray.Vec, Nor );
+          Len     := 0;
+          Hit     := nil;
+     end;
 
-          RaC := _TranRatio * World.Raytrace( RaA, RayN_ );
+     ReC := World.Raytrace( WorldHit_, ReA );
+
+     if Refract( WorldRay_.Ray.Vec, Nor, ReI, RaA.Ray.Vec, ReW ) then
+     begin
+          with RaA do
+          begin
+               Emt     := @WorldHit_;
+               Ord     := WorldRay_.Ord;
+               Ray.Pos := WorldHit_.Pos;
+             //Ray.Vec
+               Len     := 0;
+               Hit     := nil;
+          end;
+
+          RaC := _TranRatio * World.Raytrace( WorldHit_, RaA );
 
           Result := ( ReC - RaC ) * ReW + RaC;
      end

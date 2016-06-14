@@ -100,13 +100,9 @@ begin
         X :Integer;
      //･･････････････････････
           function Jitter( const Pd_:TSingle2D ) :TSingleRGB;
-          var
-             A :TSingleRay3D;
           begin
-               A := _Camera.Shoot( ( 0.5 + X + Pd_.X ) / _Pixels.BricX,
-                                   ( 0.5 + Y + Pd_.Y ) / _Pixels.BricY );
-
-               Result := _World.Raytrace( A, 1 );
+               Result := _Camera.Render( ( 0.5 + X + Pd_.X ) / _Pixels.BricX,
+                                         ( 0.5 + Y + Pd_.Y ) / _Pixels.BricY );
           end;
      //･･････････････････････
      var
