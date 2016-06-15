@@ -21,12 +21,17 @@ type //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
 
      TRayRay = record
      private
+       ///// アクセス
+       function GetTip :TSingle3D;
+       procedure SetTip( const Tip_:TSingle3D );
      public
        Emt :PRayHit;
        Ord :Integer;
        Ray :TSingleRay3D;
        Len :Single;
        Hit :PRayHit;
+       ///// プロパティ
+       property Tip :TSingle3D read GetTip write SetTip;
      end;
 
      //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TRayHit
@@ -34,29 +39,24 @@ type //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
      TRayHit = record
      private
        ///// アクセス
-       function GetObj :TRayGeometry;
-       function GetLen :Single;
        function GetPos :TSingle3D;
        function GetNor :TSingle3D;
        function GetTan :TSingle3D;
        function GetBin :TSingle3D;
-       function GetTex :TSingle3D;
      public
-       _Obj :TRayGeometry;
-       _Len :Single;
+       Ray :PRayRay;
+       Obj :TRayGeometry;
+       Len :Single;
        _Pos :TSingle3D;
        _Nor :TSingle3D;
        _Tan :TSingle3D;
        _Bin :TSingle3D;
-       _Tex :TSingle3D;
+       Tex :TSingle3D;
        ///// プロパティ
-       property Obj :TRayGeometry read GetObj;
-       property Len :Single       read GetLen;
        property Pos :TSingle3D    read GetPos;
        property Nor :TSingle3D    read GetNor;
        property Tan :TSingle3D    read GetTan;
        property Bin :TSingle3D    read GetBin;
-       property Tex :TSingle3D    read GetTex;
        ///// メソッド
        function Scatter( const WorldRay_:TRayRay ) :TSingleRGB;
      end;
@@ -93,7 +93,7 @@ type //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
        procedure SetMaterial( const Material_:TRayMaterial ); virtual;
        ///// メソッド
        function _RayCast( const LocalRay_:TRayRay ) :TRayHit; virtual;
-       function _RayJoin( const LocalPos_:TSingle3D ) :TRayHit; virtual;
+       procedure _RayJoin( var LocalRay_:TRayRay; var LocalHit_:TRayHit ); virtual;
        procedure RayCastChilds( const WorldRay_:TRayRay; var WorldHit_:TRayHit ); virtual;
      public
        constructor Create; override;
@@ -111,7 +111,8 @@ type //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
        function HitBoundBox( const WorldRay_:TRayRay ) :Boolean; virtual;
        function RayCast( const WorldRay_:TRayRay ) :TRayHit; virtual;
        function RayCasts( const WorldRay_:TRayRay ) :TRayHit; virtual;
-       function RayJoin( const WorldPos_:TSingle3D ) :TRayHit;
+       function RayJoin( var WorldRay_:TRayRay; var WorldHit_:TRayHit ) :Boolean;
+       function RayJoins( var WorldRay_:TRayRay; var WorldHit_:TRayHit ) :Boolean;
        function Raytrace( const WorldRay_:TRayRay ) :TSingleRGB; virtual;
      end;
 
@@ -163,7 +164,7 @@ type //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
      protected
        _Color :TSingleRGB;
        ///// メソッド
-       function _RayJoin( const LocalPos_:TSingle3D ) :TRayHit; override;
+       procedure _RayJoin( var LocalRay_:TRayRay; var LocalHit_:TRayHit ); override;
      public
        constructor Create; override;
        constructor Create( const Paren_:TTreeNode ); override;
@@ -238,6 +239,18 @@ uses System.SysUtils,
 
 //&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&& private
 
+function TRayRay.GetTip :TSingle3D;
+begin
+     Result := Ray.GoPos( Len );
+end;
+
+procedure TRayRay.SetTip( const Tip_:TSingle3D );
+begin
+     Ray.Vec := Ray.Pos.VectorTo( Tip_ );
+     Len     := Ray.Vec.Size;
+     Ray.Vec := Ray.Vec / Len;
+end;
+
 //&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&& public
 
 //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TRayHit
@@ -248,39 +261,24 @@ uses System.SysUtils,
 
 /////////////////////////////////////////////////////////////////////// アクセス
 
-function TRayHit.GetObj :TRayGeometry;
-begin
-     Result := _Obj;
-end;
-
-function TRayHit.GetLen :Single;
-begin
-     Result := _Len;
-end;
-
 function TRayHit.GetPos :TSingle3D;
 begin
-     Result := _Obj.WorldMatrix.MultPos( _Pos );
+     Result := Obj.WorldMatrix.MultPos( _Pos );
 end;
 
 function TRayHit.GetNor :TSingle3D;
 begin
-     Result := _Obj.WorldMatriI.Transpose.MultVec( _Nor ).Unitor;
+     Result := Obj.WorldMatriI.Transpose.MultVec( _Nor ).Unitor;
 end;
 
 function TRayHit.GetTan :TSingle3D;
 begin
-     Result := _Obj.WorldMatriI.Transpose.MultVec( _Tan ).Unitor;
+     Result := Obj.WorldMatriI.Transpose.MultVec( _Tan ).Unitor;
 end;
 
 function TRayHit.GetBin :TSingle3D;
 begin
-     Result := _Obj.WorldMatriI.Transpose.MultVec( _Bin ).Unitor;
-end;
-
-function TRayHit.GetTex :TSingle3D;
-begin
-     Result := _Tex;
+     Result := Obj.WorldMatriI.Transpose.MultVec( _Bin ).Unitor;
 end;
 
 //&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&& public
@@ -289,7 +287,7 @@ end;
 
 function TRayHit.Scatter( const WorldRay_:TRayRay ) :TSingleRGB;
 begin
-     Result := _Obj.Material.Scatter( WorldRay_, Self );
+     Result := Obj.Material.Scatter( WorldRay_, Self );
 end;
 
 //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$【クラス】
@@ -460,12 +458,12 @@ end;
 
 function TRayGeometry._RayCast( const LocalRay_:TRayRay ) :TRayHit;
 begin
-     Result._Obj := nil;
+     Result.Obj := nil;
 end;
 
-function TRayGeometry._RayJoin( const LocalPos_:TSingle3D ) :TRayHit;
+procedure TRayGeometry._RayJoin( var LocalRay_:TRayRay; var LocalHit_:TRayHit );
 begin
-     Result._Obj := nil;
+
 end;
 
 procedure TRayGeometry.RayCastChilds( const WorldRay_:TRayRay; var WorldHit_:TRayHit );
@@ -565,7 +563,7 @@ begin
 
           Result := _RayCast( A );
      end
-     else Result._Obj := nil;
+     else Result.Obj := nil;
 end;
 
 function TRayGeometry.RayCasts( const WorldRay_:TRayRay ) :TRayHit;
@@ -575,9 +573,73 @@ begin
      RayCastChilds( WorldRay_, Result );
 end;
 
-function TRayGeometry.RayJoin( const WorldPos_:TSingle3D ) :TRayHit;
+function TRayGeometry.RayJoin( var WorldRay_:TRayRay; var WorldHit_:TRayHit ) :Boolean;
+var
+   A :TRayRay;
+   H :TRayHit;
 begin
-     Result := _RayJoin( WorldMatriI.MultPos( WorldPos_ ) );
+     with A do
+     begin
+          Emt     := nil;
+          Ord     :=                      WorldRay_.Ord      ;
+          Ray.Pos := WorldMatriI.MultPos( WorldRay_.Ray.Pos );
+        //Ray.Vec
+        //Len
+          Hit     := @H;
+     end;
+
+     with H do
+     begin
+          Ray := @A;
+          Obj := nil;
+        //Nor
+        //Tan
+        //Bin
+        //Tex
+     end;
+
+     _RayJoin( A, H );
+
+     Result := Assigned( H.Obj );
+
+     if Result then
+     begin
+          with WorldRay_ do
+          begin
+             //Emt
+             //Ord
+             //Ray.Pos
+               Ray.Vec := WorldMatrix.MultVec( A.Ray.Vec );
+               Len     :=                      A.Len      ;
+             //Hit
+          end;
+
+          with WorldHit_ do
+          begin
+             //Ray
+               Obj :=                                      H. Obj         ;
+              _Nor := H.Obj.WorldMatriI.Transpose.MultVec( H._Nor ).Unitor;
+              _Tan := H.Obj.WorldMatriI.Transpose.MultVec( H._Tan ).Unitor;
+              _Bin := H.Obj.WorldMatriI.Transpose.MultVec( H._Bin ).Unitor;
+               Tex :=                                      H. Tex         ;
+          end;
+     end;
+end;
+
+function TRayGeometry.RayJoins( var WorldRay_:TRayRay; var WorldHit_:TRayHit ) :Boolean;
+var
+   A :TRayRay;
+   S :TRayHit;
+begin
+     if RayJoin( WorldRay_, WorldHit_ ) then
+     begin
+          A := WorldRay_;
+
+          S := World.RayCasts( A );
+
+          Result := not Assigned( S.Obj ) or ( S.Len >= WorldRay_.Len );
+     end
+     else Result := False;
 end;
 
 function TRayGeometry.Raytrace( const WorldRay_:TRayRay ) :TSingleRGB;
@@ -711,13 +773,26 @@ end;
 
 /////////////////////////////////////////////////////////////////////// メソッド
 
-function TRayLight._RayJoin( const LocalPos_:TSingle3D ) :TRayHit;
+procedure TRayLight._RayJoin( var LocalRay_:TRayRay; var LocalHit_:TRayHit );
 begin
-     with Result do
+     with LocalHit_ do
      begin
-          _Obj := Self;
-          _Pos := TSingle3D.Create( 0, 0, 0 );
-          _Len := Distance( LocalPos_, _Pos );
+        //Ray
+          Obj := Self;
+        //Nor
+        //Tan
+        //Bin
+        //Tex
+     end;
+
+     with LocalRay_ do
+     begin
+        //Emt
+        //Ord
+        //Ray
+        //Len
+        //Hit
+          Tip := TSingle3D.Create( 0, 0, 0 );
      end;
 end;
 
@@ -810,7 +885,7 @@ end;
 
 function TRayWorld.RayCasts( const WorldRay_:TRayRay ) :TRayHit;
 begin
-     Result._Obj := nil;
+     Result.Obj := nil;
 
      RayCastChilds( WorldRay_, Result );
 end;

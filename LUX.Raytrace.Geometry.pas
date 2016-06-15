@@ -123,10 +123,10 @@ begin
           begin
                with Result do
                begin
-                    _Obj := Self;
-                    _Len := T;
-                    _Pos := LocalRay_.Ray.GoPos( _Len );
-                    _Nor := TSingle3D.Create( 0, 1, 0 );
+                    Obj := Self;
+                    Len := T;
+                   _Pos := LocalRay_.Ray.GoPos( Len );
+                   _Nor := TSingle3D.Create( 0, 1, 0 );
                end;
           end;
      end;
@@ -151,13 +151,13 @@ function TRaySky._RayCast( const LocalRay_:TRayRay ) :TRayHit;
 begin
      with Result do
      begin
-          _Obj := Self;
-          _Len := Single.MaxValue;
-          _Pos := LocalRay_.Ray.GoPos( _Len );
-          _Nor := -LocalRay_.Ray.Vec;
+          Obj := Self;
+          Len := Single.MaxValue;
+         _Pos := LocalRay_.Ray.GoPos( Len );
+         _Nor := -LocalRay_.Ray.Vec;
 
-          _Tex.X := ( Pi + ArcTan2( +LocalRay_.Ray.Vec.Z, -LocalRay_.Ray.Vec.X ) ) / Pi2;
-          _Tex.Y := ArcCos( LocalRay_.Ray.Vec.Y ) / Pi;
+          Tex.X := ( Pi + ArcTan2( +LocalRay_.Ray.Vec.Z, -LocalRay_.Ray.Vec.X ) ) / Pi2;
+          Tex.Y := ArcCos( LocalRay_.Ray.Vec.Y ) / Pi;
      end;
 end;
 
@@ -184,7 +184,7 @@ function TRaySphere._RayCast( const LocalRay_:TRayRay ) :TRayHit;
 var
    A, B, C, D, D2, T0, T1 :Single;
 begin
-     Result._Obj := nil;
+     Result.Obj := nil;
 
      with LocalRay_.Ray do
      begin
@@ -207,13 +207,13 @@ begin
 
                with Result do
                begin
-                    _Obj := Self;
+                    Obj := Self;
 
-                    if T0 > _EPSILON_ then _Len := T0
-                                      else _Len := T1;
+                    if T0 > _EPSILON_ then Len := T0
+                                      else Len := T1;
 
-                    _Pos := LocalRay_.Ray.GoPos( _Len );
-                    _Nor := _Pos.Unitor;
+                   _Pos := LocalRay_.Ray.GoPos( Len );
+                   _Nor := _Pos.Unitor;
                end;
           end;
      end;
@@ -262,10 +262,10 @@ begin
           begin
                with Result do
                begin
-                    _Obj := Self;
-                    _Len := T / L;
-                    _Pos := P;
-                    _Nor := Nabla( DistanceFunc, _Pos ).Unitor;
+                    Obj := Self;
+                    Len := T / L;
+                   _Pos := P;
+                   _Nor := Nabla( DistanceFunc, _Pos ).Unitor;
                end;
 
                Exit;
