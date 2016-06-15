@@ -19,10 +19,10 @@ type //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
      private
      protected
        ///// メソッド
-       function _RayCast( const LocalRay_:TSingleRay3D ) :TRayHit; override;
+       function _RayCast( const LocalRay_:TRayRay ) :TRayHit; override;
      public
        ///// メソッド
-       function HitBoundBox( const WorldRay_:TSingleRay3D ) :Boolean; override;
+       function HitBoundBox( const WorldRay_:TRayRay ) :Boolean; override;
      end;
 
      //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TRaySky
@@ -31,7 +31,7 @@ type //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
      private
      protected
        ///// メソッド
-       function _RayCast( const LocalRay_:TSingleRay3D ) :TRayHit; override;
+       function _RayCast( const LocalRay_:TRayRay ) :TRayHit; override;
      public
      end;
 
@@ -44,7 +44,7 @@ type //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
        ///// アクセス
        procedure SetRadius( const Radius_:Single );
        ///// メソッド
-       function _RayCast( const LocalRay_:TSingleRay3D ) :TRayHit; override;
+       function _RayCast( const LocalRay_:TRayRay ) :TRayHit; override;
      public
        constructor Create; override;
        ///// プロパティ
@@ -59,7 +59,7 @@ type //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
        _IteraN :Integer;
        ///// メソッド
        function DistanceFunc( const P_:TdSingle3D ) :TdSingle; virtual; abstract;
-       function _RayCast( const LocalRay_:TSingleRay3D ) :TRayHit; override;
+       function _RayCast( const LocalRay_:TRayRay ) :TRayHit; override;
      public
        constructor Create; override;
        ///// プロパティ
@@ -109,15 +109,15 @@ uses System.SysUtils, System.Math;
 
 /////////////////////////////////////////////////////////////////////// メソッド
 
-function TRayGround._RayCast( const LocalRay_:TSingleRay3D ) :TRayHit;
+function TRayGround._RayCast( const LocalRay_:TRayRay ) :TRayHit;
 var
    T :Single;
 begin
      Result := inherited;
 
-     if ( LocalRay_.Pos.Y > 0 ) and ( LocalRay_.Vec.Y < 0 ) then
+     if ( LocalRay_.Ray.Pos.Y > 0 ) and ( LocalRay_.Ray.Vec.Y < 0 ) then
      begin
-          T := LocalRay_.Pos.Y / -LocalRay_.Vec.Y;
+          T := LocalRay_.Ray.Pos.Y / -LocalRay_.Ray.Vec.Y;
 
           if T > _EPSILON_ then
           begin
@@ -125,14 +125,14 @@ begin
                begin
                     _Obj := Self;
                     _Len := T;
-                    _Pos := LocalRay_.GoPos( _Len );
+                    _Pos := LocalRay_.Ray.GoPos( _Len );
                     _Nor := TSingle3D.Create( 0, 1, 0 );
                end;
           end;
      end;
 end;
 
-function TRayGround.HitBoundBox( const WorldRay_:TSingleRay3D ) :Boolean;
+function TRayGround.HitBoundBox( const WorldRay_:TRayRay ) :Boolean;
 begin
      Result := True;
 end;
@@ -147,17 +147,17 @@ end;
 
 /////////////////////////////////////////////////////////////////////// メソッド
 
-function TRaySky._RayCast( const LocalRay_:TSingleRay3D ) :TRayHit;
+function TRaySky._RayCast( const LocalRay_:TRayRay ) :TRayHit;
 begin
      with Result do
      begin
           _Obj := Self;
           _Len := Single.MaxValue;
-          _Pos := LocalRay_.GoPos( _Len );
-          _Nor := -LocalRay_.Vec;
+          _Pos := LocalRay_.Ray.GoPos( _Len );
+          _Nor := -LocalRay_.Ray.Vec;
 
-          _Tex.X := ( Pi + ArcTan2( +LocalRay_.Vec.Z, -LocalRay_.Vec.X ) ) / Pi2;
-          _Tex.Y := ArcCos( LocalRay_.Vec.Y ) / Pi;
+          _Tex.X := ( Pi + ArcTan2( +LocalRay_.Ray.Vec.Z, -LocalRay_.Ray.Vec.X ) ) / Pi2;
+          _Tex.Y := ArcCos( LocalRay_.Ray.Vec.Y ) / Pi;
      end;
 end;
 
@@ -180,13 +180,13 @@ end;
 
 /////////////////////////////////////////////////////////////////////// メソッド
 
-function TRaySphere._RayCast( const LocalRay_:TSingleRay3D ) :TRayHit;
+function TRaySphere._RayCast( const LocalRay_:TRayRay ) :TRayHit;
 var
    A, B, C, D, D2, T0, T1 :Single;
 begin
      Result._Obj := nil;
 
-     with LocalRay_ do
+     with LocalRay_.Ray do
      begin
           A := Vec.Siz2;
           B := DotProduct( Pos, Vec );
@@ -212,7 +212,7 @@ begin
                     if T0 > _EPSILON_ then _Len := T0
                                       else _Len := T1;
 
-                    _Pos := LocalRay_.GoPos( _Len );
+                    _Pos := LocalRay_.Ray.GoPos( _Len );
                     _Nor := _Pos.Unitor;
                end;
           end;
@@ -236,23 +236,23 @@ end;
 
 /////////////////////////////////////////////////////////////////////// メソッド
 
-function TRayImplicit._RayCast( const LocalRay_:TSingleRay3D ) :TRayHit;
+function TRayImplicit._RayCast( const LocalRay_:TRayRay ) :TRayHit;
 var
    L, T, D0, D1 :Single;
    V :TSingle3D;
    N :Integer;
    P :TdSingle3D;
 begin
-     L := LocalRay_.Vec.Size;
-     V := LocalRay_.Vec / L;
+     L := LocalRay_.Ray.Vec.Size;
+     V := LocalRay_.Ray.Vec / L;
 
-     D0 := DistanceFunc( LocalRay_.Pos ).o;
+     D0 := DistanceFunc( LocalRay_.Ray.Pos ).o;
 
      T := D0;
 
      for N := 1 to _IteraN do
      begin
-          P := LocalRay_.Pos + V * T;
+          P := LocalRay_.Ray.Pos + V * T;
 
           D1 := DistanceFunc( P ).o;
 
