@@ -94,7 +94,7 @@ type //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
        ///// メソッド
        function _RayCast( const LocalRay_:TRayRay ) :TRayHit; virtual;
        function _RayJoin( const LocalPos_:TSingle3D ) :TRayHit; virtual;
-       procedure RayCastChilds( const WorldRay_:TRayRay; var Hit_:TRayHit ); virtual;
+       procedure RayCastChilds( const WorldRay_:TRayRay; var WorldHit_:TRayHit ); virtual;
      public
        constructor Create; override;
        destructor Destroy; override;
@@ -216,7 +216,7 @@ type //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
        ///// プロパティ
        property World :TRayWorld read GetWorld;
        ///// メソッド
-       function Scatter( const WorldRay_:TRayRay; const Hit_:TRayHit ) :TSingleRGB; virtual; abstract;
+       function Scatter( const WorldRay_:TRayRay; const WorldHit_:TRayHit ) :TSingleRGB; virtual; abstract;
      end;
 
 const //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$【定数】
@@ -468,7 +468,7 @@ begin
      Result._Obj := nil;
 end;
 
-procedure TRayGeometry.RayCastChilds( const WorldRay_:TRayRay; var Hit_:TRayHit );
+procedure TRayGeometry.RayCastChilds( const WorldRay_:TRayRay; var WorldHit_:TRayHit );
 var
    I :Integer;
    H :TRayHit;
@@ -477,14 +477,14 @@ begin
      begin
           H := Childs[ I ].RayCasts( WorldRay_ );
 
-          if Assigned( Hit_.Obj ) then
+          if Assigned( WorldHit_.Obj ) then
           begin
                if Assigned( H.Obj ) then
                begin
-                    if H.Len < Hit_.Len then Hit_ := H;
+                    if H.Len < WorldHit_.Len then WorldHit_ := H;
                end;
           end
-          else Hit_ := H;
+          else WorldHit_ := H;
      end;
 end;
 
