@@ -91,7 +91,7 @@ type //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
        function GetMaterial :TRayMaterial; virtual;
        procedure SetMaterial( const Material_:TRayMaterial ); virtual;
        ///// メソッド
-       function _RayCast( const LocalRay_:TRayRay ) :TRayHit; virtual;
+       procedure _RayCast( var LocalRay_:TRayRay; var LocalHit_:TRayHit ); virtual;
        procedure _RayJoin( var LocalRay_:TRayRay; var LocalHit_:TRayHit ); virtual;
        procedure RayCastChilds( const WorldRay_:TRayRay; var WorldHit_:TRayHit ); virtual;
      public
@@ -456,9 +456,9 @@ end;
 
 /////////////////////////////////////////////////////////////////////// メソッド
 
-function TRayGeometry._RayCast( const LocalRay_:TRayRay ) :TRayHit;
+procedure TRayGeometry._RayCast( var LocalRay_:TRayRay; var LocalHit_:TRayHit );
 begin
-     Result.Obj := nil;
+
 end;
 
 procedure TRayGeometry._RayJoin( var LocalRay_:TRayRay; var LocalHit_:TRayHit );
@@ -550,16 +550,32 @@ function TRayGeometry.RayCast( const WorldRay_:TRayRay ) :TRayHit;
 var
    T0, T1 :Single;
    A :TRayRay;
+   H :TRayHit;
 begin
      if HitBoundBox( WorldRay_, T0, T1 ) then
      begin
           with A do
           begin
+               Emt := nil;
                Ord := WorldRay_.Ord;
                Ray := WorldMatriI * WorldRay_.Ray;
+             //Len
+               Hit := @H;
           end;
 
-          Result := _RayCast( A );
+          with H do
+          begin
+               Ray := @A;
+               Obj := nil;
+             //Nor
+             //Tan
+             //Bin
+             //Tex
+          end;
+
+          _RayCast( A, H );
+
+          Result := H;
      end
      else Result.Obj := nil;
 end;

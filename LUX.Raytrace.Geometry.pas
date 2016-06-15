@@ -21,7 +21,7 @@ type //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
        ///// アクセス
        function GetLocalAABB :TSingleArea3D; override;
        ///// メソッド
-       function _RayCast( const LocalRay_:TRayRay ) :TRayHit; override;
+       procedure _RayCast( var LocalRay_:TRayRay; var LocalHit_:TRayHit ); override;
      public
      end;
 
@@ -31,7 +31,7 @@ type //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
      private
      protected
        ///// メソッド
-       function _RayCast( const LocalRay_:TRayRay ) :TRayHit; override;
+       procedure _RayCast( var LocalRay_:TRayRay; var LocalHit_:TRayHit ); override;
      public
      end;
 
@@ -44,7 +44,7 @@ type //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
        ///// アクセス
        function GetLocalAABB :TSingleArea3D; override;
        ///// メソッド
-       function _RayCast( const LocalRay_:TRayRay ) :TRayHit; override;
+       procedure _RayCast( var LocalRay_:TRayRay; var LocalHit_:TRayHit ); override;
      public
        constructor Create; override;
        ///// プロパティ
@@ -59,7 +59,7 @@ type //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
        _IteraN :Integer;
        ///// メソッド
        function DistanceFunc( const P_:TdSingle3D ) :TdSingle; virtual; abstract;
-       function _RayCast( const LocalRay_:TRayRay ) :TRayHit; override;
+       procedure _RayCast( var LocalRay_:TRayRay; var LocalHit_:TRayHit ); override;
      public
        constructor Create; override;
        ///// プロパティ
@@ -119,19 +119,17 @@ end;
 
 /////////////////////////////////////////////////////////////////////// メソッド
 
-function TRayGround._RayCast( const LocalRay_:TRayRay ) :TRayHit;
+procedure TRayGround._RayCast( var LocalRay_:TRayRay; var LocalHit_:TRayHit );
 var
    T :Single;
 begin
-     Result := inherited;
-
      if ( LocalRay_.Ray.Pos.Y > 0 ) and ( LocalRay_.Ray.Vec.Y < 0 ) then
      begin
           T := LocalRay_.Ray.Pos.Y / -LocalRay_.Ray.Vec.Y;
 
           if T > _EPSILON_ then
           begin
-               with Result do
+               with LocalHit_ do
                begin
                     Obj := Self;
                     Len := T;
@@ -152,9 +150,9 @@ end;
 
 /////////////////////////////////////////////////////////////////////// メソッド
 
-function TRaySky._RayCast( const LocalRay_:TRayRay ) :TRayHit;
+procedure TRaySky._RayCast( var LocalRay_:TRayRay; var LocalHit_:TRayHit );
 begin
-     with Result do
+     with LocalHit_ do
      begin
           Obj := Self;
           Len := Single.MaxValue;
@@ -183,12 +181,10 @@ end;
 
 /////////////////////////////////////////////////////////////////////// メソッド
 
-function TRaySphere._RayCast( const LocalRay_:TRayRay ) :TRayHit;
+procedure TRaySphere._RayCast( var LocalRay_:TRayRay; var LocalHit_:TRayHit );
 var
    A, B, C, D, D2, T0, T1 :Single;
 begin
-     Result.Obj := nil;
-
      with LocalRay_.Ray do
      begin
           A := Vec.Siz2;
@@ -208,7 +204,7 @@ begin
           begin
                T0 := ( -B - D2 ) / A;
 
-               with Result do
+               with LocalHit_ do
                begin
                     Obj := Self;
 
@@ -239,7 +235,7 @@ end;
 
 /////////////////////////////////////////////////////////////////////// メソッド
 
-function TRayImplicit._RayCast( const LocalRay_:TRayRay ) :TRayHit;
+procedure TRayImplicit._RayCast( var LocalRay_:TRayRay; var LocalHit_:TRayHit );
 var
    L, T, D0, D1 :Single;
    V :TSingle3D;
@@ -263,7 +259,7 @@ begin
 
           if ( D1 < D0 ) and ( D1 < _EPSILON_ ) then
           begin
-               with Result do
+               with LocalHit_ do
                begin
                     Obj := Self;
                     Len := T / L;
