@@ -322,7 +322,7 @@ var
 begin
      if up_WorldAABB then
      begin
-          _WorldAABB := TSingleArea3D.NegaInf;
+          _WorldAABB := TSingleArea3D.NeInf;
 
           for I := 0 to 7 do
           begin
@@ -494,9 +494,8 @@ constructor TRayGeometry.Create;
 begin
      inherited;
 
-     _LocalAABB := TSingleArea3D.PosiInf;
-
-     _WorldAABB := _LocalAABB      ;  up_WorldAABB := False;
+     _LocalAABB := TSingleArea3D.PoMax ;
+     _WorldAABB := _LocalAABB          ;  up_WorldAABB := False;
 
      _LocalMatrix := TSingleM4.Identify;  up_LocalMatrix := False;
      _LocalMatriI := TSingleM4.Identify;  up_LocalMatriI := False;
