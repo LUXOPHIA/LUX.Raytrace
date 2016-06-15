@@ -74,7 +74,6 @@ type //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
        _LocalMatriI :TSingleM4    ;  up_LocalMatriI:Boolean;
        _WorldMatrix :TSingleM4    ;  up_WorldMatrix:Boolean;
        _WorldMatriI :TSingleM4    ;  up_WorldMatriI:Boolean;
-       _LocalAABB   :TSingleArea3D;
        _WorldAABB   :TSingleArea3D;  up_WorldAABB:Boolean;
        _Material    :TRayMaterial ;
        ///// アクセス
@@ -87,7 +86,7 @@ type //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
        procedure SetWorldMatrix( const WorldMatrix_:TSingleM4 ); virtual;
        function GetWorldMatriI :TSingleM4; virtual;
        procedure SetWorldMatriI( const WorldMatriI_:TSingleM4 ); virtual;
-       procedure SetLocalAABB( const LocalAABB_:TSingleArea3D );
+       function GetLocalAABB :TSingleArea3D; virtual;
        function GetWorldAABB :TSingleArea3D; virtual;
        function GetMaterial :TRayMaterial; virtual;
        procedure SetMaterial( const Material_:TRayMaterial ); virtual;
@@ -104,11 +103,11 @@ type //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
        property LocalMatriI :TSingleM4     read GetLocalMatriI write SetLocalMatriI;
        property WorldMatrix :TSingleM4     read GetWorldMatrix write SetWorldMatrix;
        property WorldMatriI :TSingleM4     read GetWorldMatriI write SetWorldMatriI;
-       property LocalAABB   :TSingleArea3D read   _LocalAABB   write SetLocalAABB  ;
+       property LocalAABB   :TSingleArea3D read GetLocalAABB                       ;
        property WorldAABB   :TSingleArea3D read GetWorldAABB                       ;
        property Material    :TRayMaterial  read GetMaterial    write SetMaterial   ;
        ///// メソッド
-       function HitBoundBox( const WorldRay_:TRayRay ) :Boolean; virtual;
+       function HitBoundBox( const WorldRay_:TRayRay; out MinT_,MaxT_:Single ) :Boolean;
        function RayCast( const WorldRay_:TRayRay ) :TRayHit; virtual;
        function RayCasts( const WorldRay_:TRayRay ) :TRayHit; virtual;
        function RayJoin( var WorldRay_:TRayRay; var WorldHit_:TRayHit ) :Boolean;
@@ -186,6 +185,7 @@ type //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
        function GetLocalMatriI :TSingleM4; override;
        function GetWorldMatrix :TSingleM4; override;
        function GetWorldMatriI :TSingleM4; override;
+       function GetLocalAABB :TSingleArea3D; override;
        function GetLightsN :Integer;
      public
        constructor Create; override;
@@ -199,7 +199,6 @@ type //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
        property LightsN     :Integer           read GetLightsN               ;
        property RecursN     :Integer           read   _RecursN write _RecursN;
        ///// メソッド
-       function HitBoundBox( const WorldRay_:TRayRay ) :Boolean; override;
        function RayCasts( const WorldRay_:TRayRay ) :TRayHit; override;
      end;
 
@@ -307,46 +306,6 @@ end;
 
 //------------------------------------------------------------------------------
 
-procedure TRayGeometry.SetLocalAABB( const LocalAABB_:TSingleArea3D );
-begin
-     _LocalAABB := LocalAABB_;
-
-     up_WorldAABB := True;
-end;
-
-function TRayGeometry.GetWorldAABB :TSingleArea3D;
-var
-   I :Integer;
-begin
-     if up_WorldAABB then
-     begin
-          _WorldAABB := TSingleArea3D.NeInf;
-
-          for I := 0 to 7 do
-          begin
-               with WorldMatrix.MultPos( LocalAABB.Poin[ I ] ) do
-               begin
-                    with _WorldAABB do
-                    begin
-                         if X < Min.X then Min.X := X;
-                         if Y < Min.Y then Min.Y := Y;
-                         if Z < Min.Z then Min.Z := Z;
-
-                         if X > Max.X then Max.X := X;
-                         if Y > Max.Y then Max.Y := Y;
-                         if Z > Max.Z then Max.Z := Z;
-                    end;
-               end;
-          end;
-
-          up_WorldAABB := False;
-     end;
-
-     Result := _WorldAABB;
-end;
-
-//------------------------------------------------------------------------------
-
 function TRayGeometry.GetLocalMatrix :TSingleM4;
 begin
      if up_LocalMatrix then
@@ -441,6 +400,47 @@ end;
 
 //------------------------------------------------------------------------------
 
+function TRayGeometry.GetLocalAABB :TSingleArea3D;
+begin
+     Result := TSingleArea3D.PoInf;
+end;
+
+function TRayGeometry.GetWorldAABB :TSingleArea3D;
+var
+   B :TSingleArea3D;
+   I :Integer;
+begin
+     if up_WorldAABB then
+     begin
+          B := GetLocalAABB;
+
+          _WorldAABB := TSingleArea3D.NeInf;
+
+          for I := 0 to 7 do
+          begin
+               with WorldMatrix.MultPos( B.Poin[ I ] ) do
+               begin
+                    with _WorldAABB do
+                    begin
+                         if X < Min.X then Min.X := X;
+                         if Y < Min.Y then Min.Y := Y;
+                         if Z < Min.Z then Min.Z := Z;
+
+                         if X > Max.X then Max.X := X;
+                         if Y > Max.Y then Max.Y := Y;
+                         if Z > Max.Z then Max.Z := Z;
+                    end;
+               end;
+          end;
+
+          up_WorldAABB := False;
+     end;
+
+     Result := _WorldAABB;
+end;
+
+//------------------------------------------------------------------------------
+
 function TRayGeometry.GetMaterial :TRayMaterial;
 begin
      if Assigned( _Material ) then Result :=      _Material
@@ -492,8 +492,7 @@ constructor TRayGeometry.Create;
 begin
      inherited;
 
-     _LocalAABB := TSingleArea3D.PoMax ;
-     _WorldAABB := _LocalAABB          ;  up_WorldAABB := False;
+     _WorldAABB   := GetLocalAABB      ;  up_WorldAABB   := False;
 
      _LocalMatrix := TSingleM4.Identify;  up_LocalMatrix := False;
      _LocalMatriI := TSingleM4.Identify;  up_LocalMatriI := False;
@@ -512,9 +511,7 @@ end;
 
 /////////////////////////////////////////////////////////////////////// メソッド
 
-function TRayGeometry.HitBoundBox( const WorldRay_:TRayRay ) :Boolean;
-var
-   MinT, MaxT :Single;
+function TRayGeometry.HitBoundBox( const WorldRay_:TRayRay; out MinT_,MaxT_:Single ) :Boolean;
 //････････････････････････････････････････････････････････････････････････
      procedure Slab( const Min_,Max_,Pos_,Vec_:Single );
      var
@@ -523,13 +520,13 @@ var
           T0 := ( Min_ - Pos_ ) / Vec_;
           T1 := ( Max_ - Pos_ ) / Vec_;
 
-          if MinT < T0 then MinT := T0;
-          if T1 < MaxT then MaxT := T1;
+          if MinT_ < T0 then MinT_ := T0;
+          if T1 < MaxT_ then MaxT_ := T1;
      end;
 //････････････････････････････････････････････････････････････････････････
 begin
-     MinT := -Single.MaxValue;
-     MaxT := +Single.MaxValue;
+     MinT_ := -Single.MaxValue;
+     MaxT_ := +Single.MaxValue;
 
      with WorldRay_.Ray, WorldAABB do
      begin
@@ -546,14 +543,15 @@ begin
           if Vec.Z < 0 then Slab( Max.Z, Min.Z, Pos.Z, Vec.Z );
      end;
 
-     Result := ( MinT <= MaxT );
+     Result := ( MinT_ <= MaxT_ );
 end;
 
 function TRayGeometry.RayCast( const WorldRay_:TRayRay ) :TRayHit;
 var
+   T0, T1 :Single;
    A :TRayRay;
 begin
-     if HitBoundBox( WorldRay_ ) then
+     if HitBoundBox( WorldRay_, T0, T1 ) then
      begin
           with A do
           begin
@@ -854,6 +852,13 @@ end;
 
 //------------------------------------------------------------------------------
 
+function TRayWorld.GetLocalAABB :TSingleArea3D;
+begin
+     Result := TSingleArea3D.NeInf;
+end;
+
+//------------------------------------------------------------------------------
+
 function TRayWorld.GetLightsN :Integer;
 begin
      Result := Length( _Lights );
@@ -877,11 +882,6 @@ begin
 end;
 
 /////////////////////////////////////////////////////////////////////// メソッド
-
-function TRayWorld.HitBoundBox( const WorldRay_:TRayRay ) :Boolean;
-begin
-     Result := False;
-end;
 
 function TRayWorld.RayCasts( const WorldRay_:TRayRay ) :TRayHit;
 begin

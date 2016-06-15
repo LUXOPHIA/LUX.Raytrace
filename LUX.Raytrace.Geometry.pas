@@ -18,11 +18,11 @@ type //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
      TRayGround = class( TRayGeometry )
      private
      protected
+       ///// アクセス
+       function GetLocalAABB :TSingleArea3D; override;
        ///// メソッド
        function _RayCast( const LocalRay_:TRayRay ) :TRayHit; override;
      public
-       ///// メソッド
-       function HitBoundBox( const WorldRay_:TRayRay ) :Boolean; override;
      end;
 
      //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TRaySky
@@ -42,13 +42,13 @@ type //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
      protected
        _Radius :Single;
        ///// アクセス
-       procedure SetRadius( const Radius_:Single );
+       function GetLocalAABB :TSingleArea3D; override;
        ///// メソッド
        function _RayCast( const LocalRay_:TRayRay ) :TRayHit; override;
      public
        constructor Create; override;
        ///// プロパティ
-       property Radius :Single read _Radius write SetRadius;
+       property Radius :Single read _Radius write _Radius;
      end;
 
      //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TRayImplicit
@@ -70,21 +70,18 @@ type //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
 
      TRayTorus = class( TRayImplicit )
      private
-       ///// メソッド
-       procedure MakeAABB;
      protected
        _LingR :Single;
        _PipeR :Single;
        ///// アクセス
-       procedure SetLingR( const LingR_:Single );
-       procedure SetPipeR( const PipeR_:Single );
+       function GetLocalAABB :TSingleArea3D; override;
        ///// メソッド
        function DistanceFunc( const P_:TdSingle3D ) :TdSingle; override;
      public
        constructor Create; override;
        ///// プロパティ
-       property LingR :Single read _LingR write SetLingR;
-       property PipeR :Single read _PipeR write SetPipeR;
+       property LingR :Single read _LingR write _LingR;
+       property PipeR :Single read _PipeR write _PipeR;
      end;
 
 //const //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$【定数】
@@ -104,6 +101,19 @@ uses System.SysUtils, System.Math;
 //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TRayGround
 
 //&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&& private
+
+/////////////////////////////////////////////////////////////////////// アクセス
+
+function TRayGround.GetLocalAABB :TSingleArea3D;
+begin
+     Result := TSingleArea3D.PoMax;
+
+     with Result do
+     begin
+          Min.Y := 0;
+          Max.Y := 0;
+     end;
+end;
 
 //&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&& protected
 
@@ -130,11 +140,6 @@ begin
                end;
           end;
      end;
-end;
-
-function TRayGround.HitBoundBox( const WorldRay_:TRayRay ) :Boolean;
-begin
-     Result := True;
 end;
 
 //&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&& public
@@ -169,11 +174,9 @@ end;
 
 /////////////////////////////////////////////////////////////////////// アクセス
 
-procedure TRaySphere.SetRadius( const Radius_:Single );
+function TRaySphere.GetLocalAABB :TSingleArea3D;
 begin
-     _Radius := Radius_;
-
-     LocalAABB := TSingleArea3D.Create( -Radius_, +Radius_ );
+     Result := TSingleArea3D.Create( -_Radius, +_Radius );
 end;
 
 //&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&& protected
@@ -288,34 +291,18 @@ end;
 
 //&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&& private
 
-/////////////////////////////////////////////////////////////////////// メソッド
+//&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&& protected
 
-procedure TRayTorus.MakeAABB;
+/////////////////////////////////////////////////////////////////////// アクセス
+
+function TRayTorus.GetLocalAABB :TSingleArea3D;
 var
    R :Single;
 begin
      R := _LingR + _PipeR;
 
-     LocalAABB := TSingleArea3D.Create( -R, -R, -_PipeR,
-                                        +R, +R, +_PipeR );
-end;
-
-//&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&& protected
-
-/////////////////////////////////////////////////////////////////////// アクセス
-
-procedure TRayTorus.SetLingR( const LingR_:Single );
-begin
-     _LingR := LingR_;
-
-     MakeAABB;
-end;
-
-procedure TRayTorus.SetPipeR( const PipeR_:Single );
-begin
-     _PipeR := PipeR_;
-
-     MakeAABB;
+     Result := TSingleArea3D.Create( -R, -R, -_PipeR,
+                                     +R, +R, +_PipeR );
 end;
 
 /////////////////////////////////////////////////////////////////////// メソッド
