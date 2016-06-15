@@ -18,7 +18,7 @@ type //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
      protected
      public
        ///// メソッド
-       function Scatter( const WorldRay_:TRayRay; const RayN_:Integer; const Hit_:TRayHit ) :TSingleRGB; override;
+       function Scatter( const WorldRay_:TRayRay; const Hit_:TRayHit ) :TSingleRGB; override;
      end;
 
      //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TMaterialTexColor
@@ -33,7 +33,7 @@ type //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
        ///// プロパティ
        property Texture :TTexture2D read _Texture;
        ///// メソッド
-       function Scatter( const WorldRay_:TRayRay; const RayN_:Integer; const Hit_:TRayHit ) :TSingleRGB; override;
+       function Scatter( const WorldRay_:TRayRay; const Hit_:TRayHit ) :TSingleRGB; override;
      end;
 
      //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TMaterialDiff
@@ -47,7 +47,7 @@ type //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
        ///// プロパティ
        property DiffRatio :TSingleRGB read _DiffRatio write _DiffRatio;
        ///// メソッド
-       function Scatter( const WorldRay_:TRayRay; const RayN_:Integer; const Hit_:TRayHit ) :TSingleRGB; override;
+       function Scatter( const WorldRay_:TRayRay; const Hit_:TRayHit ) :TSingleRGB; override;
      end;
 
      //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TMaterialMirror
@@ -61,7 +61,7 @@ type //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
        ///// プロパティ
        property SpecRatio :TSingleRGB read _SpecRatio write _SpecRatio;
        ///// メソッド
-       function Scatter( const WorldRay_:TRayRay; const RayN_:Integer; const Hit_:TRayHit ) :TSingleRGB; override;
+       function Scatter( const WorldRay_:TRayRay; const Hit_:TRayHit ) :TSingleRGB; override;
      end;
 
      //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TMaterialGlass
@@ -77,7 +77,7 @@ type //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
        property RefrIndex :Single     read _RefrIndex write _RefrIndex;
        property TranRatio :TSingleRGB read _TranRatio write _TranRatio;
        ///// メソッド
-       function Scatter( const WorldRay_:TRayRay; const RayN_:Integer; const Hit_:TRayHit ) :TSingleRGB; override;
+       function Scatter( const WorldRay_:TRayRay; const Hit_:TRayHit ) :TSingleRGB; override;
      end;
 
 //const //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$【定数】
@@ -105,7 +105,7 @@ uses System.Math,
 
 /////////////////////////////////////////////////////////////////////// メソッド
 
-function TMaterialRGB.Scatter( const WorldRay_:TRayRay; const RayN_:Integer; const Hit_:TRayHit ) :TSingleRGB;
+function TMaterialRGB.Scatter( const WorldRay_:TRayRay; const Hit_:TRayHit ) :TSingleRGB;
 begin
      with Hit_ do
      begin
@@ -139,7 +139,7 @@ end;
 
 /////////////////////////////////////////////////////////////////////// メソッド
 
-function TMaterialTexColor.Scatter( const WorldRay_:TRayRay; const RayN_:Integer; const Hit_:TRayHit ) :TSingleRGB;
+function TMaterialTexColor.Scatter( const WorldRay_:TRayRay; const Hit_:TRayHit ) :TSingleRGB;
 begin
      with Hit_ do
      begin
@@ -164,7 +164,7 @@ end;
 
 /////////////////////////////////////////////////////////////////////// メソッド
 
-function TMaterialDiff.Scatter( const WorldRay_:TRayRay; const RayN_:Integer; const Hit_:TRayHit ) :TSingleRGB;
+function TMaterialDiff.Scatter( const WorldRay_:TRayRay; const Hit_:TRayHit ) :TSingleRGB;
 var
    L :TRayLight;
    A :TRayRay;
@@ -192,6 +192,7 @@ begin
 
           with A do
           begin
+               Ord     := WorldRay_.Ord + 1;
                Ray.Pos := Hit_.Pos;
                Ray.Vec := Hit_.Pos.UnitorTo( H.Pos );
           end;
@@ -223,17 +224,18 @@ end;
 
 /////////////////////////////////////////////////////////////////////// メソッド
 
-function TMaterialMirror.Scatter( const WorldRay_:TRayRay; const RayN_:Integer; const Hit_:TRayHit ) :TSingleRGB;
+function TMaterialMirror.Scatter( const WorldRay_:TRayRay; const Hit_:TRayHit ) :TSingleRGB;
 var
    ReA :TRayRay;
 begin
      with ReA do
      begin
+          Ord     := WorldRay_.Ord + 1;
           Ray.Pos := Hit_.Pos;
           Ray.Vec := Reflect( WorldRay_.Ray.Vec, Hit_.Nor );
      end;
 
-     Result := _SpecRatio * World.Raytrace( ReA, RayN_ );
+     Result := _SpecRatio * World.Raytrace( ReA );
 end;
 
 //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TMaterialGlass
@@ -254,7 +256,7 @@ end;
 
 /////////////////////////////////////////////////////////////////////// メソッド
 
-function TMaterialGlass.Scatter( const WorldRay_:TRayRay; const RayN_:Integer; const Hit_:TRayHit ) :TSingleRGB;
+function TMaterialGlass.Scatter( const WorldRay_:TRayRay; const Hit_:TRayHit ) :TSingleRGB;
 var
    ReI, ReW :Single;
    Nor :TSingle3D;
@@ -274,17 +276,22 @@ begin
 
      with ReA do
      begin
+          Ord     := WorldRay_.Ord + 1;
           Ray.Pos := Hit_.Pos;
           Ray.Vec := Reflect( WorldRay_.Ray.Vec, Nor );
      end;
 
-     ReC := World.Raytrace( ReA, RayN_ );
+     ReC := World.Raytrace( ReA );
 
      if Refract( WorldRay_.Ray.Vec, Nor, ReI, RaA.Ray.Vec, ReW ) then
      begin
-          RaA.Ray.Pos := Hit_.Pos;
+          with RaA do
+          begin
+               Ord     := WorldRay_.Ord + 1;
+               Ray.Pos := Hit_.Pos;
+          end;
 
-          RaC := _TranRatio * World.Raytrace( RaA, RayN_ );
+          RaC := _TranRatio * World.Raytrace( RaA );
 
           Result := ( ReC - RaC ) * ReW + RaC;
      end

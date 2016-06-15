@@ -58,7 +58,7 @@ type //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
        property Bin :TSingle3D    read GetBin;
        property Tex :TSingle3D    read GetTex;
        ///// メソッド
-       function Scatter( const WorldRay_:TRayRay; const RayN_:Integer  ) :TSingleRGB;
+       function Scatter( const WorldRay_:TRayRay ) :TSingleRGB;
      end;
 
      //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$【クラス】
@@ -112,7 +112,7 @@ type //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
        function RayCast( const WorldRay_:TRayRay ) :TRayHit; virtual;
        function RayCasts( const WorldRay_:TRayRay ) :TRayHit; virtual;
        function RayJoin( const WorldPos_:TSingle3D ) :TRayHit;
-       function Raytrace( const WorldRay_:TRayRay; const RayN_:Integer ) :TSingleRGB; virtual;
+       function Raytrace( const WorldRay_:TRayRay ) :TSingleRGB; virtual;
      end;
 
      //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TRayCamera
@@ -216,7 +216,7 @@ type //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
        ///// プロパティ
        property World :TRayWorld read GetWorld;
        ///// メソッド
-       function Scatter( const WorldRay_:TRayRay; const RayN_:Integer; const Hit_:TRayHit ) :TSingleRGB; virtual; abstract;
+       function Scatter( const WorldRay_:TRayRay; const Hit_:TRayHit ) :TSingleRGB; virtual; abstract;
      end;
 
 const //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$【定数】
@@ -287,9 +287,9 @@ end;
 
 /////////////////////////////////////////////////////////////////////// メソッド
 
-function TRayHit.Scatter( const WorldRay_:TRayRay; const RayN_:Integer ) :TSingleRGB;
+function TRayHit.Scatter( const WorldRay_:TRayRay ) :TSingleRGB;
 begin
-     Result := _Obj.Material.Scatter( WorldRay_, RayN_ + 1, Self );
+     Result := _Obj.Material.Scatter( WorldRay_, Self );
 end;
 
 //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$【クラス】
@@ -560,6 +560,7 @@ begin
      begin
           with A do
           begin
+               Ord := WorldRay_.Ord;
                Ray := WorldMatriI * WorldRay_.Ray;
           end;
 
@@ -580,15 +581,15 @@ begin
      Result := _RayJoin( WorldMatriI.MultPos( WorldPos_ ) );
 end;
 
-function TRayGeometry.Raytrace( const WorldRay_:TRayRay; const RayN_:Integer ) :TSingleRGB;
+function TRayGeometry.Raytrace( const WorldRay_:TRayRay ) :TSingleRGB;
 var
    H :TRayHit;
 begin
-     if RayN_ <= World.RecursN then
+     if WorldRay_.Ord <= World.RecursN then
      begin
           H := RayCasts( WorldRay_ );
 
-          if Assigned( H.Obj ) then Result := H.Scatter( WorldRay_, RayN_ )
+          if Assigned( H.Obj ) then Result := H.Scatter( WorldRay_ )
                                else Result := 0;
      end
      else Result := 0;
@@ -688,6 +689,8 @@ function TRayCamera.Shoot( const X_,Y_:Single ) :TRayRay;
 begin
      with Result do
      begin
+          Ord     := 1;
+
           Ray.Pos := TSingle3D.Create( 0, 0, 0 );
 
           with Ray.Vec do
@@ -790,7 +793,7 @@ begin
 
      _Material := TMaterialRGB.Create;
      _Lights   := [];
-     _RecursN  := 10;
+     _RecursN  := 8;
 end;
 
 destructor TRayWorld.Destroy;
