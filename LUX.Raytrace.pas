@@ -2,7 +2,8 @@
 
 interface //#################################################################### ■
 
-uses LUX, LUX.D1, LUX.D3, LUX.Matrix.L4, LUX.Color, LUX.Graph.Tree;
+uses System.Math,
+     LUX, LUX.D1, LUX.D3, LUX.Matrix.L4, LUX.Color, LUX.Graph.Tree;
 
 type //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$【型】
 
@@ -24,6 +25,7 @@ type //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
        ///// アクセス
        function GetTip :TSingle3D;
        procedure SetTip( const Tip_:TSingle3D );
+       function GetSignIO :TValueSign;
        function GetShiftRay :TSingleRay3D;
      public
        Emt :PRayHit;
@@ -33,6 +35,7 @@ type //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
        Hit :PRayHit;
        ///// プロパティ
        property Tip      :TSingle3D    read GetTip      write SetTip;
+       property SignIO   :TValueSign   read GetSignIO               ;
        property ShiftRay :TSingleRay3D read GetShiftRay             ;
      end;
 
@@ -224,7 +227,7 @@ const //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
 
 implementation //############################################################### ■
 
-uses System.SysUtils, System.Math,
+uses System.SysUtils,
      LUX.Raytrace.Material;
 
 //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$【レコード】
@@ -247,11 +250,16 @@ begin
      Ray.Vec := Ray.Vec / Len;
 end;
 
+function TRayRay.GetSignIO :TValueSign;
+begin
+     Result := Sign( DotProduct( Emt.Nor, Ray.Vec ) );
+end;
+
 function TRayRay.GetShiftRay :TSingleRay3D;
 begin
      with Result do
      begin
-          Pos := Ray.Pos + Sign( DotProduct( Emt.Nor, Ray.Vec ) ) * _EPSILON_ * Emt.Nor;
+          Pos := Ray.Pos + GetSignIO * _EPSILON_ * Emt.Nor;
           Vec := Ray.Vec;
      end;
 end;
@@ -532,16 +540,26 @@ end;
 function TRayGeometry.RayCast( var WorldRay_:TRayRay; var WorldHit_:TRayHit ) :Boolean;
 var
    L :TSingleArea;
+   E, H :TRayHit;
    A :TRayRay;
-   H :TRayHit;
 begin
      Result := HitBoundBox( WorldRay_, L );
 
      if Result then
      begin
+          with E do
+          begin
+               Ray :=                                    nil  ;
+               Obj :=                      WorldRay_.Emt.Obj  ;
+               Nor := WorldMatriI.MultVec( WorldRay_.Emt.Nor );
+             //Tan
+             //Bin
+             //Tex
+          end;
+
           with A do
           begin
-               Emt := nil;
+               Emt := @E;
                Ord := WorldRay_.Ord;
                Ray := WorldMatriI * WorldRay_.ShiftRay;
              //Len
@@ -595,12 +613,22 @@ end;
 
 function TRayGeometry.RayJoin( var WorldRay_:TRayRay; var WorldHit_:TRayHit ) :Boolean;
 var
+   E, H :TRayHit;
    A :TRayRay;
-   H :TRayHit;
 begin
+     with E do
+     begin
+          Ray :=                                    nil  ;
+          Obj :=                      WorldRay_.Emt.Obj  ;
+          Nor := WorldMatriI.MultVec( WorldRay_.Emt.Nor );
+        //Tan
+        //Bin
+        //Tex
+     end;
+
      with A do
      begin
-          Emt     := nil;
+          Emt     :=                                     @E       ;
           Ord     :=                      WorldRay_.     Ord      ;
           Ray.Pos := WorldMatriI.MultPos( WorldRay_.ShiftRay.Pos );
 
