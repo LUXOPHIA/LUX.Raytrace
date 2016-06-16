@@ -88,7 +88,7 @@ type //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
        function GetMaterial :TRayMaterial; virtual;
        procedure SetMaterial( const Material_:TRayMaterial ); virtual;
        ///// メソッド
-       procedure _RayCast( var LocalRay_:TRayRay; var LocalHit_:TRayHit ); virtual;
+       procedure _RayCast( var LocalRay_:TRayRay; var LocalHit_:TRayHit; const Len_:TSingleArea ); virtual;
        procedure _RayJoin( var LocalRay_:TRayRay; var LocalHit_:TRayHit ); virtual;
        function RayCastChilds( var WorldRay_:TRayRay; var WorldHit_:TRayHit ) :Boolean; virtual;
      public
@@ -415,11 +415,11 @@ begin
 
           _WorldAABB := TSingleArea3D.NeInf;
 
-          for I := 0 to 7 do
+          with _WorldAABB do
           begin
-               with WorldMatrix.MultPos( B.Poin[ I ] ) do
+               for I := 0 to 7 do
                begin
-                    with _WorldAABB do
+                    with WorldMatrix.MultPos( B.Poin[ I ] ) do
                     begin
                          if X < Min.X then Min.X := X;
                          if Y < Min.Y then Min.Y := Y;
@@ -429,6 +429,20 @@ begin
                          if Y > Max.Y then Max.Y := Y;
                          if Z > Max.Z then Max.Z := Z;
                     end;
+               end;
+
+               with Min do
+               begin
+                    X := X - _EPSILON_;
+                    Y := Y - _EPSILON_;
+                    Z := Z - _EPSILON_;
+               end;
+
+               with Max do
+               begin
+                    X := X + _EPSILON_;
+                    Y := Y + _EPSILON_;
+                    Z := Z + _EPSILON_;
                end;
           end;
 
@@ -455,7 +469,7 @@ end;
 
 /////////////////////////////////////////////////////////////////////// メソッド
 
-procedure TRayGeometry._RayCast( var LocalRay_:TRayRay; var LocalHit_:TRayHit );
+procedure TRayGeometry._RayCast( var LocalRay_:TRayRay; var LocalHit_:TRayHit; const Len_:TSingleArea );
 begin
 
 end;
@@ -540,30 +554,28 @@ end;
 function TRayGeometry.RayCast( var WorldRay_:TRayRay; var WorldHit_:TRayHit ) :Boolean;
 var
    L :TSingleArea;
-   E, H :TRayHit;
    A :TRayRay;
+   S :Single;
+   H :TRayHit;
 begin
      Result := HitBoundBox( WorldRay_, L );
 
      if Result then
      begin
-          with E do
-          begin
-               Ray :=                                    nil  ;
-               Obj :=                      WorldRay_.Emt.Obj  ;
-               Nor := WorldMatriI.MultVec( WorldRay_.Emt.Nor );
-             //Tan
-             //Bin
-             //Tex
-          end;
-
           with A do
           begin
-               Emt := @E;
-               Ord := WorldRay_.Ord;
+               Emt := nil;
+               Ord :=               WorldRay_.     Ord;
                Ray := WorldMatriI * WorldRay_.ShiftRay;
-             //Len
+               Len := 0;
                Hit := @H;
+
+               with Ray do
+               begin
+                    S := Vec.Size;
+
+                    Vec := Vec / S;
+               end;
           end;
 
           with H do
@@ -576,9 +588,15 @@ begin
              //Tex
           end;
 
-          _RayCast( A, H );
+          with L do
+          begin
+               Min := Min * S;
+               Max := Max * S;
+          end;
 
-          Result := Assigned( H.Obj ) and ( A.Len < WorldRay_.Len );
+          _RayCast( A, H, L );
+
+          Result := Assigned( H.Obj ) and ( A.Len < WorldRay_.Len * S );
 
           if Result then
           begin
@@ -587,7 +605,7 @@ begin
                   //Emt
                   //Ord
                   //Ray
-                    Len := A.Len;
+                    Len := A.Len / S;
                   //Hit
                end;
 
@@ -613,27 +631,16 @@ end;
 
 function TRayGeometry.RayJoin( var WorldRay_:TRayRay; var WorldHit_:TRayHit ) :Boolean;
 var
-   E, H :TRayHit;
    A :TRayRay;
+   H :TRayHit;
 begin
-     with E do
-     begin
-          Ray :=                                    nil  ;
-          Obj :=                      WorldRay_.Emt.Obj  ;
-          Nor := WorldMatriI.MultVec( WorldRay_.Emt.Nor );
-        //Tan
-        //Bin
-        //Tex
-     end;
-
      with A do
      begin
-          Emt     :=                                     @E       ;
+          Emt     := nil;
           Ord     :=                      WorldRay_.     Ord      ;
           Ray.Pos := WorldMatriI.MultPos( WorldRay_.ShiftRay.Pos );
-
         //Ray.Vec
-        //Len
+          Len     := 0;
           Hit     := @H;
      end;
 
