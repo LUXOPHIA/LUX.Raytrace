@@ -18,22 +18,23 @@ type //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
      private
        _Stop :Boolean;
      protected
-       _Pixels     :TBricArray2D<TSingleRGBA>;
+       _Pixels     :TBricArray2D<TSingleRGB>;
        _World      :TRayWorld;
        _Camera     :TRayCamera;
        _MaxSampleN :Integer;
        _ConvN      :Integer;
        _ConvE      :Single;
+       _Gamma      :Single;
      public
        constructor Create; overload;
        destructor Destroy; override;
        ///// プロパティ
-       property Pixels     :TBricArray2D<TSingleRGBA> read _Pixels                      ;
-       property World      :TRayWorld                 read _World      write _World     ;
-       property Camera     :TRayCamera                read _Camera     write _Camera    ;
-       property MaxSampleN :Integer                   read _MaxSampleN write _MaxSampleN;
-       property ConvN      :Integer                   read _ConvN      write _ConvN     ;
-       property ConvE      :Single                    read _ConvE      write _ConvE     ;
+       property Pixels     :TBricArray2D<TSingleRGB> read _Pixels                      ;
+       property World      :TRayWorld                read _World      write _World     ;
+       property Camera     :TRayCamera               read _Camera     write _Camera    ;
+       property MaxSampleN :Integer                  read _MaxSampleN write _MaxSampleN;
+       property ConvN      :Integer                  read _ConvN      write _ConvN     ;
+       property ConvE      :Single                   read _ConvE      write _ConvE     ;
        ///// メソッド
        procedure Run;
        procedure Stop;
@@ -67,12 +68,13 @@ constructor TRayRender.Create;
 begin
      inherited;
 
-     _Pixels     := TBricArray2D<TSingleRGBA>.Create( 640, 480 );
+     _Pixels     := TBricArray2D<TSingleRGB>.Create( 640, 480 );
      _World      := nil;
      _Camera     := nil;
      _MaxSampleN := 64;
      _ConvN      := 4;
      _ConvE      := 1/32;
+     _Gamma      := 2.2;
 end;
 
 destructor TRayRender.Destroy;
@@ -100,9 +102,13 @@ begin
         X :Integer;
      //･･････････････････････
           function Jitter( const Pd_:TSingle2D ) :TSingleRGB;
+          var
+             A :TRayRay;
           begin
-               Result := _Camera.Render( ( 0.5 + X + Pd_.X ) / _Pixels.BricX,
-                                         ( 0.5 + Y + Pd_.Y ) / _Pixels.BricY );
+               A := _Camera.Shoot( ( 0.5 + X + Pd_.X ) / _Pixels.BricX,
+                                   ( 0.5 + Y + Pd_.Y ) / _Pixels.BricY );
+
+               Result := _World.Raytrace( A );
           end;
      //･･････････････････････
      var
@@ -163,7 +169,9 @@ begin
           P := B.GetScanline( Y );
           for X := 0 to _Pixels.BricX-1 do
           begin
-               P^ := _Pixels[ X, Y ];  Inc( P );
+               P^ := GammaCorrect( _Pixels[ X, Y ], _Gamma );
+
+               Inc( P );
           end;
      end );
 
