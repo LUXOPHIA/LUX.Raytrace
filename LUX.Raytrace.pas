@@ -40,21 +40,15 @@ type //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
      private
        ///// アクセス
        function GetPos :TSingle3D;
-       function GetNor :TSingle3D;
-       function GetTan :TSingle3D;
-       function GetBin :TSingle3D;
      public
        Ray :PRayRay;
        Obj :TRayGeometry;
-       _Nor :TSingle3D;
-       _Tan :TSingle3D;
-       _Bin :TSingle3D;
+       Nor :TSingle3D;
+       Tan :TSingle3D;
+       Bin :TSingle3D;
        Tex :TSingle3D;
        ///// プロパティ
        property Pos :TSingle3D read GetPos;
-       property Nor :TSingle3D read GetNor;
-       property Tan :TSingle3D read GetTan;
-       property Bin :TSingle3D read GetBin;
        ///// メソッド
        function Scatter( const WorldRay_:TRayRay ) :TSingleRGB;
      end;
@@ -261,21 +255,6 @@ end;
 function TRayHit.GetPos :TSingle3D;
 begin
      Result := Ray.Tip;
-end;
-
-function TRayHit.GetNor :TSingle3D;
-begin
-     Result := Obj.WorldMatriI.Transpose.MultVec( _Nor ).Unitor;
-end;
-
-function TRayHit.GetTan :TSingle3D;
-begin
-     Result := Obj.WorldMatriI.Transpose.MultVec( _Tan ).Unitor;
-end;
-
-function TRayHit.GetBin :TSingle3D;
-begin
-     Result := Obj.WorldMatriI.Transpose.MultVec( _Bin ).Unitor;
 end;
 
 //&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&& public
@@ -583,11 +562,11 @@ begin
                with WorldHit_ do
                begin
                   //Ray
-                    Obj := H. Obj;
-                   _Nor := H._Nor;
-                   _Tan := H._Tan;
-                   _Bin := H._Bin;
-                    Tex := H. Tex;
+                    Obj :=                                      H.Obj         ;
+                    Nor := H.Obj.WorldMatriI.Transpose.MultVec( H.Nor ).Unitor;
+                    Tan := H.Obj.WorldMatriI.Transpose.MultVec( H.Tan ).Unitor;
+                    Bin := H.Obj.WorldMatriI.Transpose.MultVec( H.Bin ).Unitor;
+                    Tex :=                                      H.Tex         ;
                end;
           end;
      end;
@@ -644,11 +623,11 @@ begin
           with WorldHit_ do
           begin
              //Ray
-               Obj :=                                      H. Obj         ;
-              _Nor := H.Obj.WorldMatriI.Transpose.MultVec( H._Nor ).Unitor;
-              _Tan := H.Obj.WorldMatriI.Transpose.MultVec( H._Tan ).Unitor;
-              _Bin := H.Obj.WorldMatriI.Transpose.MultVec( H._Bin ).Unitor;
-               Tex :=                                      H. Tex         ;
+               Obj :=                                      H.Obj         ;
+               Nor := H.Obj.WorldMatriI.Transpose.MultVec( H.Nor ).Unitor;
+               Tan := H.Obj.WorldMatriI.Transpose.MultVec( H.Tan ).Unitor;
+               Bin := H.Obj.WorldMatriI.Transpose.MultVec( H.Bin ).Unitor;
+               Tex :=                                      H.Tex         ;
           end;
      end;
 end;

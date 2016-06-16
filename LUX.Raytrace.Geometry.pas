@@ -137,7 +137,8 @@ begin
                with LocalHit_ do
                begin
                     Obj := Self;
-                   _Nor := TSingle3D.Create( 0, 1, 0 );
+
+                    Nor := TSingle3D.Create( 0, 1, 0 );
                end;
           end;
      end;
@@ -163,7 +164,8 @@ begin
      with LocalHit_ do
      begin
           Obj := Self;
-         _Nor := -LocalRay_.Ray.Vec;
+
+          Nor := -LocalRay_.Ray.Vec;
 
           Tex.X := ( Pi + ArcTan2( +LocalRay_.Ray.Vec.Z, -LocalRay_.Ray.Vec.X ) ) / Pi2;
           Tex.Y := ArcCos( LocalRay_.Ray.Vec.Y ) / Pi;
@@ -219,7 +221,8 @@ begin
                with LocalHit_ do
                begin
                     Obj := Self;
-                   _Nor := LocalHit_.Pos.Unitor;
+
+                    Nor := LocalHit_.Pos.Unitor;
                end;
           end;
      end;
@@ -274,7 +277,8 @@ begin
                with LocalHit_ do
                begin
                     Obj := Self;
-                   _Nor := Nabla( DistanceFunc, P ).Unitor;
+
+                    Nor := Nabla( DistanceFunc, P ).Unitor;
                end;
 
                Exit;
