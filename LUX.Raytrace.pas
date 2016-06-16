@@ -93,7 +93,7 @@ type //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
        ///// メソッド
        procedure _RayCast( var LocalRay_:TRayRay; var LocalHit_:TRayHit ); virtual;
        procedure _RayJoin( var LocalRay_:TRayRay; var LocalHit_:TRayHit ); virtual;
-       function RayCastChilds( const WorldRay_:TRayRay; var WorldHit_:TRayHit ) :Boolean; virtual;
+       function RayCastChilds( var WorldRay_:TRayRay; var WorldHit_:TRayHit ) :Boolean; virtual;
      public
        constructor Create; override;
        destructor Destroy; override;
@@ -108,11 +108,11 @@ type //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
        property Material    :TRayMaterial  read GetMaterial    write SetMaterial   ;
        ///// メソッド
        function HitBoundBox( const WorldRay_:TRayRay; out Len_:TSingleArea ) :Boolean;
-       function RayCast( const WorldRay_:TRayRay; var WorldHit_:TRayHit ) :Boolean; virtual;
-       function RayCasts( const WorldRay_:TRayRay; var WorldHit_:TRayHit ) :Boolean; virtual;
+       function RayCast( var WorldRay_:TRayRay; var WorldHit_:TRayHit ) :Boolean; virtual;
+       function RayCasts( var WorldRay_:TRayRay; var WorldHit_:TRayHit ) :Boolean; virtual;
        function RayJoin( var WorldRay_:TRayRay; var WorldHit_:TRayHit ) :Boolean;
        function RayJoins( var WorldRay_:TRayRay; var WorldHit_:TRayHit ) :Boolean;
-       function Raytrace( const WorldRay_:TRayRay ) :TSingleRGB; virtual;
+       function Raytrace( var WorldRay_:TRayRay ) :TSingleRGB; virtual;
      end;
 
      //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TRayCamera
@@ -199,7 +199,7 @@ type //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
        property LightsN     :Integer           read GetLightsN               ;
        property RecursN     :Integer           read   _RecursN write _RecursN;
        ///// メソッド
-       function RayCasts( const WorldRay_:TRayRay; var WorldHit_:TRayHit ) :Boolean; override;
+       function RayCasts( var WorldRay_:TRayRay; var WorldHit_:TRayHit ) :Boolean; override;
      end;
 
      //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TRayMaterial
@@ -466,7 +466,7 @@ begin
 
 end;
 
-function TRayGeometry.RayCastChilds( const WorldRay_:TRayRay; var WorldHit_:TRayHit ) :Boolean;
+function TRayGeometry.RayCastChilds( var WorldRay_:TRayRay; var WorldHit_:TRayHit ) :Boolean;
 var
    I :Integer;
 begin
@@ -538,7 +538,7 @@ begin
      with Len_ do Result := ( Min <= Max );
 end;
 
-function TRayGeometry.RayCast( const WorldRay_:TRayRay; var WorldHit_:TRayHit ) :Boolean;
+function TRayGeometry.RayCast( var WorldRay_:TRayRay; var WorldHit_:TRayHit ) :Boolean;
 var
    L :TSingleArea;
    A :TRayRay;
@@ -578,7 +578,7 @@ begin
                   //Emt
                   //Ord
                   //Ray
-                  //Len := A.Len;
+                    Len := A.Len;
                   //Hit
                end;
 
@@ -597,7 +597,7 @@ begin
      end;
 end;
 
-function TRayGeometry.RayCasts( const WorldRay_:TRayRay; var WorldHit_:TRayHit ) :Boolean;
+function TRayGeometry.RayCasts( var WorldRay_:TRayRay; var WorldHit_:TRayHit ) :Boolean;
 begin
      Result := RayCast( WorldRay_, WorldHit_ );
 
@@ -663,7 +663,7 @@ begin
      Result := RayJoin( WorldRay_, WorldHit_ ) and not World.RayCasts( WorldRay_, WorldHit_ );
 end;
 
-function TRayGeometry.Raytrace( const WorldRay_:TRayRay ) :TSingleRGB;
+function TRayGeometry.Raytrace( var WorldRay_:TRayRay ) :TSingleRGB;
 var
    H :TRayHit;
 begin
@@ -916,7 +916,7 @@ end;
 
 /////////////////////////////////////////////////////////////////////// メソッド
 
-function TRayWorld.RayCasts( const WorldRay_:TRayRay; var WorldHit_:TRayHit ) :Boolean;
+function TRayWorld.RayCasts( var WorldRay_:TRayRay; var WorldHit_:TRayHit ) :Boolean;
 begin
      Result := RayCastChilds( WorldRay_, WorldHit_ );
 end;
