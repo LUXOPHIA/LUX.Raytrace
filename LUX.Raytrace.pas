@@ -108,7 +108,7 @@ type //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
        property Material    :TRayMaterial  read GetMaterial    write SetMaterial   ;
        ///// メソッド
        function HitBoundBox( const WorldRay_:TRayRay; out MinT_,MaxT_:Single ) :Boolean;
-       function RayCast( const WorldRay_:TRayRay ) :TRayHit; virtual;
+       function RayCast( const WorldRay_:TRayRay; var WorldHit_:TRayHit ) :Boolean; virtual;
        function RayCasts( const WorldRay_:TRayRay ) :TRayHit; virtual;
        function RayJoin( var WorldRay_:TRayRay; var WorldHit_:TRayHit ) :Boolean;
        function RayJoins( var WorldRay_:TRayRay; var WorldHit_:TRayHit ) :Boolean;
@@ -546,13 +546,15 @@ begin
      Result := ( MinT_ <= MaxT_ );
 end;
 
-function TRayGeometry.RayCast( const WorldRay_:TRayRay ) :TRayHit;
+function TRayGeometry.RayCast( const WorldRay_:TRayRay; var WorldHit_:TRayHit ) :Boolean;
 var
    T0, T1 :Single;
    A :TRayRay;
    H :TRayHit;
 begin
-     if HitBoundBox( WorldRay_, T0, T1 ) then
+     Result := HitBoundBox( WorldRay_, T0, T1 );
+
+     if Result then
      begin
           with A do
           begin
@@ -575,14 +577,40 @@ begin
 
           _RayCast( A, H );
 
-          Result := H;
-     end
-     else Result.Obj := nil;
+          Result := Assigned( H.Obj );
+
+          if Result then
+          begin
+               with WorldRay_ do
+               begin
+                  //Emt
+                  //Ord
+                  //Ray
+                  //Len := A.Len;
+                  //Hit
+               end;
+
+               with WorldHit_ do
+               begin
+                  //Ray
+                    Obj := H. Obj;
+                    Len := H. Len;
+                   _Pos := H._Pos;
+                   _Nor := H._Nor;
+                   _Tan := H._Tan;
+                   _Bin := H._Bin;
+                    Tex := H. Tex;
+               end;
+          end;
+     end;
 end;
 
 function TRayGeometry.RayCasts( const WorldRay_:TRayRay ) :TRayHit;
 begin
-     Result := RayCast( WorldRay_ );
+     Result.Obj := nil;
+     Result.Len := Single.MaxValue;
+
+     RayCast( WorldRay_, Result );
 
      RayCastChilds( WorldRay_, Result );
 end;
