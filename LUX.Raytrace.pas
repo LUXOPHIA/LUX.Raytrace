@@ -24,6 +24,7 @@ type //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
        ///// アクセス
        function GetTip :TSingle3D;
        procedure SetTip( const Tip_:TSingle3D );
+       function GetShiftRay :TSingleRay3D;
      public
        Emt :PRayHit;
        Ord :Integer;
@@ -31,7 +32,8 @@ type //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
        Len :Single;
        Hit :PRayHit;
        ///// プロパティ
-       property Tip :TSingle3D read GetTip write SetTip;
+       property Tip      :TSingle3D    read GetTip      write SetTip;
+       property ShiftRay :TSingleRay3D read GetShiftRay             ;
      end;
 
      //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TRayHit
@@ -111,6 +113,7 @@ type //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
 
      TRayCamera = class( TRayGeometry )
      private
+       _Emt :TrayHit;
      protected
        _ScreenX :Single;
        _ScreenY :Single;
@@ -213,7 +216,7 @@ type //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
 
 const //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$【定数】
 
-      _EPSILON_ = 0.001;
+      _EPSILON_ = 0.0001;
 
 //var //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$【変数】
 
@@ -221,7 +224,7 @@ const //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
 
 implementation //############################################################### ■
 
-uses System.SysUtils,
+uses System.SysUtils, System.Math,
      LUX.Raytrace.Material;
 
 //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$【レコード】
@@ -229,6 +232,8 @@ uses System.SysUtils,
 //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TRayRay
 
 //&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&& private
+
+/////////////////////////////////////////////////////////////////////// アクセス
 
 function TRayRay.GetTip :TSingle3D;
 begin
@@ -240,6 +245,15 @@ begin
      Ray.Vec := Ray.Pos.VectorTo( Tip_ );
      Len     := Ray.Vec.Size;
      Ray.Vec := Ray.Vec / Len;
+end;
+
+function TRayRay.GetShiftRay :TSingleRay3D;
+begin
+     with Result do
+     begin
+          Pos := Ray.Pos + Sign( DotProduct( Emt.Nor, Ray.Vec ) ) * _EPSILON_ * Emt.Nor;
+          Vec := Ray.Vec;
+     end;
 end;
 
 //&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&& public
@@ -529,7 +543,7 @@ begin
           begin
                Emt := nil;
                Ord := WorldRay_.Ord;
-               Ray := WorldMatriI * WorldRay_.Ray;
+               Ray := WorldMatriI * WorldRay_.ShiftRay;
              //Len
                Hit := @H;
           end;
@@ -587,8 +601,9 @@ begin
      with A do
      begin
           Emt     := nil;
-          Ord     :=                      WorldRay_.Ord      ;
-          Ray.Pos := WorldMatriI.MultPos( WorldRay_.Ray.Pos );
+          Ord     :=                      WorldRay_.     Ord      ;
+          Ray.Pos := WorldMatriI.MultPos( WorldRay_.ShiftRay.Pos );
+
         //Ray.Vec
         //Len
           Hit     := @H;
@@ -732,6 +747,16 @@ constructor TRayCamera.Create;
 begin
      inherited;
 
+     with _Emt do
+     begin
+          Ray := nil;
+          Obj := Self;
+          Nor := TSingle3D.Create(  0,  0, -1 );
+          Tan := TSingle3D.Create( +1,  0,  0 );
+          Bin := TSingle3D.Create(  0, +1,  0 );
+          Tex := TSingle3D.Create(  0,  0,  0 );
+     end;
+
      _ScreenX := 0;
      _ScreenY := 0;
      _ScreenZ := 4;
@@ -753,7 +778,7 @@ function TRayCamera.Shoot( const X_,Y_:Single ) :TRayRay;
 begin
      with Result do
      begin
-          Emt := nil;
+          Emt := @_Emt;
 
           Ord     := 1;
 

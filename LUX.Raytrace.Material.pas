@@ -184,8 +184,18 @@ begin
                Ord     := WorldRay_.Ord + 1;
                Ray.Pos := WorldHit_.Pos;
              //Ray.Vec
-               Len     := Single.PositiveInfinity;
-               Hit     := nil
+             //Len
+               Hit     := @H;
+          end;
+
+          with H do
+          begin
+               Ray := @A;
+               Obj := nil;
+             //Nor
+             //Tan
+             //Bin
+             //Tex
           end;
 
           if L.RayJoins( A, H ) then
