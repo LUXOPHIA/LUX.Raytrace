@@ -263,19 +263,19 @@ end;
 
 function TMaterialGlass.Scatter( const WorldRay_:TRayRay; const WorldHit_:TRayHit ) :TSingleRGB;
 var
-   ReI, ReW :Single;
+   RaI, ReW :Single;
    Nor :TSingle3D;
    ReA, RaA :TRayRay;
    ReC, RaC :TSingleRGB;
 begin
      if DotProduct( WorldRay_.Ray.Vec, WorldHit_.Nor ) < 0 then
      begin
-          ReI := _RefrIndex;
+          RaI := _RefrIndex;
           Nor := +WorldHit_.Nor;
      end
      else
      begin
-          ReI := 1 / _RefrIndex;
+          RaI := 1 / _RefrIndex;
           Nor := -WorldHit_.Nor;
      end;
 
@@ -291,14 +291,16 @@ begin
 
      ReC := World.Raytrace( ReA );
 
-     if Refract( WorldRay_.Ray.Vec, Nor, ReI, RaA.Ray.Vec, ReW ) then
+     ReW := ReflectW( WorldRay_.Ray.Vec, Nor, RaI );
+
+     if ReW < 1 then
      begin
           with RaA do
           begin
                Emt     := @WorldHit_;
                Ord     := WorldRay_.Ord + 1;
                Ray.Pos := WorldHit_.Pos;
-             //Ray.Vec
+               Ray.Vec := Refract( WorldRay_.Ray.Vec, Nor, RaI );
                Len     := Single.PositiveInfinity;
                Hit     := nil;
           end;
