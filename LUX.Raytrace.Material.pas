@@ -88,7 +88,7 @@ type //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
 
 implementation //############################################################### ■
 
-uses System.Math,
+uses System.SysUtils, System.Math,
      LUX.D2, LUX.Geometry.D3;
 
 //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$【レコード】
@@ -180,12 +180,12 @@ begin
 
           with A do
           begin
-             //Emt
+               Emt     := @WorldHit_;
                Ord     := WorldRay_.Ord + 1;
                Ray.Pos := WorldHit_.Pos;
              //Ray.Vec
-             //Len
-             //Hit
+               Len     := Single.PositiveInfinity;
+               Hit     := nil
           end;
 
           if L.RayJoins( A, H ) then
@@ -222,9 +222,12 @@ var
 begin
      with ReA do
      begin
+          Emt     := @WorldHit_;
           Ord     := WorldRay_.Ord + 1;
           Ray.Pos := WorldHit_.Pos;
           Ray.Vec := Reflect( WorldRay_.Ray.Vec, WorldHit_.Nor );
+          Len     := Single.PositiveInfinity;
+          Hit     := nil;
      end;
 
      Result := _SpecRatio * World.Raytrace( ReA );
@@ -268,9 +271,12 @@ begin
 
      with ReA do
      begin
+          Emt     := @WorldHit_;
           Ord     := WorldRay_.Ord + 1;
           Ray.Pos := WorldHit_.Pos;
           Ray.Vec := Reflect( WorldRay_.Ray.Vec, Nor );
+          Len     := Single.PositiveInfinity;
+          Hit     := nil;
      end;
 
      ReC := World.Raytrace( ReA );
@@ -279,8 +285,12 @@ begin
      begin
           with RaA do
           begin
+               Emt     := @WorldHit_;
                Ord     := WorldRay_.Ord + 1;
                Ray.Pos := WorldHit_.Pos;
+             //Ray.Vec
+               Len     := Single.PositiveInfinity;
+               Hit     := nil;
           end;
 
           RaC := _TranRatio * World.Raytrace( RaA );

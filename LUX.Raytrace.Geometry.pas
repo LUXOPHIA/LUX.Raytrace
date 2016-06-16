@@ -129,11 +129,14 @@ begin
 
           if T > _EPSILON_ then
           begin
+               with LocalRay_ do
+               begin
+                    Len := T;
+               end;
+
                with LocalHit_ do
                begin
                     Obj := Self;
-                    Len := T;
-                   _Pos := LocalRay_.Ray.GoPos( Len );
                    _Nor := TSingle3D.Create( 0, 1, 0 );
                end;
           end;
@@ -152,11 +155,14 @@ end;
 
 procedure TRaySky._RayCast( var LocalRay_:TRayRay; var LocalHit_:TRayHit );
 begin
+     with LocalRay_ do
+     begin
+          Len := Single.MaxValue;
+     end;
+
      with LocalHit_ do
      begin
           Obj := Self;
-          Len := Single.MaxValue;
-         _Pos := LocalRay_.Ray.GoPos( Len );
          _Nor := -LocalRay_.Ray.Vec;
 
           Tex.X := ( Pi + ArcTan2( +LocalRay_.Ray.Vec.Z, -LocalRay_.Ray.Vec.X ) ) / Pi2;
@@ -204,15 +210,16 @@ begin
           begin
                T0 := ( -B - D2 ) / A;
 
+               with LocalRay_ do
+               begin
+                    if T0 > _EPSILON_ then Len := T0
+                                      else Len := T1;
+               end;
+
                with LocalHit_ do
                begin
                     Obj := Self;
-
-                    if T0 > _EPSILON_ then Len := T0
-                                      else Len := T1;
-
-                   _Pos := LocalRay_.Ray.GoPos( Len );
-                   _Nor := _Pos.Unitor;
+                   _Nor := LocalHit_.Pos.Unitor;
                end;
           end;
      end;
@@ -259,12 +266,15 @@ begin
 
           if ( D1 < D0 ) and ( D1 < _EPSILON_ ) then
           begin
+               with LocalRay_ do
+               begin
+                    Len := T / L;
+               end;
+
                with LocalHit_ do
                begin
                     Obj := Self;
-                    Len := T / L;
-                   _Pos := P;
-                   _Nor := Nabla( DistanceFunc, _Pos ).Unitor;
+                   _Nor := Nabla( DistanceFunc, P ).Unitor;
                end;
 
                Exit;

@@ -46,17 +46,15 @@ type //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
      public
        Ray :PRayRay;
        Obj :TRayGeometry;
-       Len :Single;
-       _Pos :TSingle3D;
        _Nor :TSingle3D;
        _Tan :TSingle3D;
        _Bin :TSingle3D;
        Tex :TSingle3D;
        ///// プロパティ
-       property Pos :TSingle3D    read GetPos;
-       property Nor :TSingle3D    read GetNor;
-       property Tan :TSingle3D    read GetTan;
-       property Bin :TSingle3D    read GetBin;
+       property Pos :TSingle3D read GetPos;
+       property Nor :TSingle3D read GetNor;
+       property Tan :TSingle3D read GetTan;
+       property Bin :TSingle3D read GetBin;
        ///// メソッド
        function Scatter( const WorldRay_:TRayRay ) :TSingleRGB;
      end;
@@ -262,7 +260,7 @@ end;
 
 function TRayHit.GetPos :TSingle3D;
 begin
-     Result := Obj.WorldMatrix.MultPos( _Pos );
+     Result := Ray.Tip;
 end;
 
 function TRayHit.GetNor :TSingle3D;
@@ -569,7 +567,7 @@ begin
 
           _RayCast( A, H );
 
-          Result := Assigned( H.Obj ) and ( H.Len < WorldHit_.Len );
+          Result := Assigned( H.Obj ) and ( A.Len < WorldRay_.Len );
 
           if Result then
           begin
@@ -586,8 +584,6 @@ begin
                begin
                   //Ray
                     Obj := H. Obj;
-                    Len := H. Len;
-                   _Pos := H._Pos;
                    _Nor := H._Nor;
                    _Tan := H._Tan;
                    _Bin := H._Bin;
@@ -649,7 +645,6 @@ begin
           begin
              //Ray
                Obj :=                                      H. Obj         ;
-               Len :=                                      A.Len          ;
               _Nor := H.Obj.WorldMatriI.Transpose.MultVec( H._Nor ).Unitor;
               _Tan := H.Obj.WorldMatriI.Transpose.MultVec( H._Tan ).Unitor;
               _Bin := H.Obj.WorldMatriI.Transpose.MultVec( H._Bin ).Unitor;
@@ -673,8 +668,6 @@ begin
           begin
                Ray := @WorldRay_;
                Obj := nil;
-               Len := Single.PositiveInfinity;
-            //_Pos
             //_Nor
             //_Tan
             //_Bin
@@ -781,6 +774,8 @@ function TRayCamera.Shoot( const X_,Y_:Single ) :TRayRay;
 begin
      with Result do
      begin
+          Emt := nil;
+
           Ord     := 1;
 
           Ray.Pos := TSingle3D.Create( 0, 0, 0 );
@@ -793,6 +788,10 @@ begin
           end;
 
           Ray := TSingleRay3D( WorldMatrix * Ray.Unitor );
+
+          Len := Single.PositiveInfinity;
+
+          Hit := nil;
      end;
 end;
 
