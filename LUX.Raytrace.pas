@@ -2,7 +2,7 @@
 
 interface //#################################################################### ■
 
-uses LUX, LUX.D3, LUX.Matrix.L4, LUX.Color, LUX.Graph.Tree;
+uses LUX, LUX.D1, LUX.D3, LUX.Matrix.L4, LUX.Color, LUX.Graph.Tree;
 
 type //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$【型】
 
@@ -107,7 +107,7 @@ type //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
        property WorldAABB   :TSingleArea3D read GetWorldAABB                       ;
        property Material    :TRayMaterial  read GetMaterial    write SetMaterial   ;
        ///// メソッド
-       function HitBoundBox( const WorldRay_:TRayRay; out MinT_,MaxT_:Single ) :Boolean;
+       function HitBoundBox( const WorldRay_:TRayRay; out Len_:TSingleArea ) :Boolean;
        function RayCast( const WorldRay_:TRayRay; var WorldHit_:TRayHit ) :Boolean; virtual;
        function RayCasts( const WorldRay_:TRayRay; var WorldHit_:TRayHit ) :Boolean; virtual;
        function RayJoin( var WorldRay_:TRayRay; var WorldHit_:TRayHit ) :Boolean;
@@ -501,7 +501,7 @@ end;
 
 /////////////////////////////////////////////////////////////////////// メソッド
 
-function TRayGeometry.HitBoundBox( const WorldRay_:TRayRay; out MinT_,MaxT_:Single ) :Boolean;
+function TRayGeometry.HitBoundBox( const WorldRay_:TRayRay; out Len_:TSingleArea ) :Boolean;
 //････････････････････････････････････････････････････････････････････････
      procedure Slab( const Min_,Max_,Pos_,Vec_:Single );
      var
@@ -510,13 +510,15 @@ function TRayGeometry.HitBoundBox( const WorldRay_:TRayRay; out MinT_,MaxT_:Sing
           T0 := ( Min_ - Pos_ ) / Vec_;
           T1 := ( Max_ - Pos_ ) / Vec_;
 
-          if MinT_ < T0 then MinT_ := T0;
-          if T1 < MaxT_ then MaxT_ := T1;
+          with Len_ do
+          begin
+               if Min < T0 then Min := T0;
+               if T1 < Max then Max := T1;
+          end;
      end;
 //････････････････････････････････････････････････････････････････････････
 begin
-     MinT_ := -Single.MaxValue;
-     MaxT_ := +Single.MaxValue;
+     Len_ := TSingleArea.PoMax;
 
      with WorldRay_.Ray, WorldAABB do
      begin
@@ -533,16 +535,16 @@ begin
           if Vec.Z < 0 then Slab( Max.Z, Min.Z, Pos.Z, Vec.Z );
      end;
 
-     Result := ( MinT_ <= MaxT_ );
+     with Len_ do Result := ( Min <= Max );
 end;
 
 function TRayGeometry.RayCast( const WorldRay_:TRayRay; var WorldHit_:TRayHit ) :Boolean;
 var
-   T0, T1 :Single;
+   L :TSingleArea;
    A :TRayRay;
    H :TRayHit;
 begin
-     Result := HitBoundBox( WorldRay_, T0, T1 );
+     Result := HitBoundBox( WorldRay_, L );
 
      if Result then
      begin
