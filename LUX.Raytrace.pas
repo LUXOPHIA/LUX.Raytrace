@@ -401,7 +401,7 @@ end;
 
 function TRayGeometry.GetLocalAABB :TSingleArea3D;
 begin
-     Result := TSingleArea3D.PoInf;
+     Result := TSingleArea3D.PoMax;
 end;
 
 function TRayGeometry.GetWorldAABB :TSingleArea3D;
@@ -498,14 +498,14 @@ constructor TRayGeometry.Create;
 begin
      inherited;
 
-     _WorldAABB   := GetLocalAABB      ;  up_WorldAABB   := False;
+     _WorldAABB   := TSingleArea3D.PoMax;  up_WorldAABB   := True ;
 
-     _LocalMatrix := TSingleM4.Identify;  up_LocalMatrix := False;
-     _LocalMatriI := TSingleM4.Identify;  up_LocalMatriI := False;
-     _WorldMatrix := TSingleM4.Identify;  up_WorldMatrix := True ;
-     _WorldMatriI := TSingleM4.Identify;  up_WorldMatriI := True ;
+     _LocalMatrix := TSingleM4.Identify ;  up_LocalMatrix := False;
+     _LocalMatriI := TSingleM4.Identify ;  up_LocalMatriI := False;
+     _WorldMatrix := TSingleM4.Identify ;  up_WorldMatrix := True ;
+     _WorldMatriI := TSingleM4.Identify ;  up_WorldMatriI := True ;
 
-     _Material := nil;
+     _Material    := nil                ;
 end;
 
 destructor TRayGeometry.Destroy;
