@@ -560,6 +560,7 @@ var
    A :TRayRay;
    S :Single;
    H :TRayHit;
+   M :TSingleM4;
 begin
      Result := HitBoundBox( WorldRay_, L );
 
@@ -612,14 +613,16 @@ begin
                   //Hit
                end;
 
+               M := H.Obj.WorldMatriI.Transpose;
+
                with WorldHit_ do
                begin
                   //Ray
-                    Obj :=                                      H.Obj         ;
-                    Nor := H.Obj.WorldMatriI.Transpose.MultVec( H.Nor ).Unitor;
-                    Tan := H.Obj.WorldMatriI.Transpose.MultVec( H.Tan ).Unitor;
-                    Bin := H.Obj.WorldMatriI.Transpose.MultVec( H.Bin ).Unitor;
-                    Tex :=                                      H.Tex         ;
+                    Obj :=            H.Obj         ;
+                    Nor := M.MultVec( H.Nor ).Unitor;
+                    Tan := M.MultVec( H.Tan ).Unitor;
+                    Bin := M.MultVec( H.Bin ).Unitor;
+                    Tex :=            H.Tex         ;
                end;
           end;
      end;
@@ -636,12 +639,13 @@ function TRayGeometry.RayJoin( var WorldRay_:TRayRay; var WorldHit_:TRayHit ) :B
 var
    A :TRayRay;
    H :TRayHit;
+   M :TSingleM4;
 begin
      with A do
      begin
           Emt     := nil;
-          Ord     :=                      WorldRay_.     Ord      ;
-          Ray.Pos := WorldMatriI.MultPos( WorldRay_.ShiftRay.Pos );
+          Ord     :=                      WorldRay_.Ord      ;
+          Ray.Pos := WorldMatriI.MultPos( WorldRay_.Ray.Pos );
         //Ray.Vec
           Len     := 0;
           Hit     := @H;
@@ -673,14 +677,16 @@ begin
              //Hit
           end;
 
+          M := H.Obj.WorldMatriI.Transpose;
+
           with WorldHit_ do
           begin
              //Ray
-               Obj :=                                      H.Obj         ;
-               Nor := H.Obj.WorldMatriI.Transpose.MultVec( H.Nor ).Unitor;
-               Tan := H.Obj.WorldMatriI.Transpose.MultVec( H.Tan ).Unitor;
-               Bin := H.Obj.WorldMatriI.Transpose.MultVec( H.Bin ).Unitor;
-               Tex :=                                      H.Tex         ;
+               Obj :=            H.Obj         ;
+               Nor := M.MultVec( H.Nor ).Unitor;
+               Tan := M.MultVec( H.Tan ).Unitor;
+               Bin := M.MultVec( H.Bin ).Unitor;
+               Tex :=            H.Tex         ;
           end;
      end;
 end;
