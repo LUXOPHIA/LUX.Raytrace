@@ -406,11 +406,14 @@ end;
 
 function TRayGeometry.GetWorldAABB :TSingleArea3D;
 var
+   E :Single;
    B :TSingleArea3D;
    I :Integer;
 begin
      if up_WorldAABB then
      begin
+          E := 2 * _EPSILON_;
+
           B := GetLocalAABB;
 
           _WorldAABB := TSingleArea3D.NeInf;
@@ -433,16 +436,16 @@ begin
 
                with Min do
                begin
-                    X := X - _EPSILON_;
-                    Y := Y - _EPSILON_;
-                    Z := Z - _EPSILON_;
+                    X := X - E;
+                    Y := Y - E;
+                    Z := Z - E;
                end;
 
                with Max do
                begin
-                    X := X + _EPSILON_;
-                    Y := Y + _EPSILON_;
-                    Z := Z + _EPSILON_;
+                    X := X + E;
+                    Y := Y + E;
+                    Z := Z + E;
                end;
           end;
 
