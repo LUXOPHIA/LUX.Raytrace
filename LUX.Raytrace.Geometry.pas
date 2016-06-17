@@ -84,6 +84,27 @@ type //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
        property PipeR :Single read _PipeR write _PipeR;
      end;
 
+     //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TDefTwist
+
+     TDefTwist = class( TRayImplicit )
+     private
+       _Scale :TdSingle;
+       _LipsC :TdSingle;
+     protected
+       _ImpObj :TRayImplicit;
+       _Angle  :Single;
+       ///// アクセス
+       function GetLocalAABB :TSingleArea3D; override;
+       procedure SetAngle( const Angle_:Single );
+       ///// メソッド
+       function DistanceFunc( const P_:TdSingle3D ) :TdSingle; override;
+     public
+       constructor Create; override;
+       ///// プロパティ
+       property ImpObj :TRayImplicit read _ImpObj write _ImpObj ;
+       property Angle  :Single       read _Angle  write SetAngle;
+     end;
+
 //const //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$【定数】
 
 //var //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$【変数】
@@ -246,15 +267,19 @@ end;
 
 procedure TRayImplicit._RayCast( var LocalRay_:TRayRay; var LocalHit_:TRayHit; const Len_:TSingleArea );
 var
-   P0, P1 :TSingle3D;
+   MinL,
    D0, D1,
    T0, T1 :Single;
+   P0, P1 :TSingle3D;
    S :TValueSign;
    N :Integer;
 begin
+     if Len_.Min > 0 then MinL := Len_.Min
+                     else MinL := 0;
+
      with LocalRay_ do
      begin
-          if Len_.Min > 0 then Len := Len_.Min;
+          Len := MinL;
 
           P0 := Tip;
 
@@ -263,12 +288,11 @@ begin
           T0 := S * D0;
 
           Len := Len + T0;
-     end;
 
-     for N := 1 to _IteraN do
-     begin
-          with LocalRay_ do
+          for N := 2 to _IteraN do
           begin
+               if ( Len < MinL ) or ( Len_.Max < Len ) then Exit;
+
                P1 := Tip;
 
                D1 := DistanceFunc( P1 ).o;
@@ -277,27 +301,21 @@ begin
 
                Len := Len + T1;
 
-               if Len > Len_.Max then Exit;
-          end;
-
-          if ( T1 < T0 ) and ( T1 < _EPSILON_ ) then
-          begin
-               with LocalHit_ do
+               if ( Abs( T1 ) < Abs( T0 ) ) and ( Abs( T1 ) < _EPSILON_ ) then
                begin
-                    Obj := Self;
+                    with LocalHit_ do
+                    begin
+                         Obj := Self;
+                         Nor := Nabla( DistanceFunc, P1 ).Unitor;
+                    end;
 
-                    Nor := Nabla( DistanceFunc, P1 ).Unitor;
-               end;
-
-               with LocalRay_ do
-               begin
                     Len := Len - D1 / DotProduct( LocalHit_.Nor, Ray.Vec );
+
+                    Exit;
                end;
 
-               Exit;
+               T0 := T1;
           end;
-
-          T0 := T1;
      end;
 end;
 
@@ -351,6 +369,80 @@ begin
 
      _LingR := 2;
      _PipeR := 1;
+end;
+
+//%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TDefTwist
+
+//&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&& private
+
+//&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&& protected
+
+/////////////////////////////////////////////////////////////////////// アクセス
+
+function TDefTwist.GetLocalAABB :TSingleArea3D;
+var
+   RanY :TSIngleArea;
+   MaxR, R :Single;
+   I :Integer;
+begin
+     with _ImpObj.LocalAABB do
+     begin
+          RanY := TSIngleArea.NeInf;
+          MaxR := 0;
+          for I := 0 to 7 do
+          begin
+               with Poin[ I ] do
+               begin
+                    with RanY do
+                    begin
+                         if Y < Min then Min := Y;
+                         if Max < Y then Max := Y;
+                    end;
+
+                    R := Roo2( Pow2( X ) + Pow2( Z ) );
+
+                    if MaxR < R then MaxR := R;
+               end;
+          end;
+     end;
+
+     Result := TSingleArea3D.Create( -MaxR, RanY.Min, -MaxR,
+                                     +MaxR, RanY.Max, +MaxR );
+end;
+
+procedure TDefTwist.SetAngle( const Angle_:Single );
+begin
+     _Angle := Angle_;
+
+     _Scale := _Angle / 4;
+
+     _LipsC := Roo2( 4 + Pow2( Pi / _Scale ) );
+end;
+
+/////////////////////////////////////////////////////////////////////// メソッド
+
+function TDefTwist.DistanceFunc( const P_:TdSingle3D ) :TdSingle;
+var
+   T :TdSingle;
+   P :TdSingle3D;
+begin
+     T := _Scale * P_.Y;
+
+     P.X := P_.X * Cos( T ) - P_.Z * Sin( T );
+     P.Y := P_.Y;
+     P.Z := P_.X * Sin( T ) + P_.Z * Cos( T );
+
+     Result := _ImpObj.DistanceFunc( P ) / _LipsC;
+end;
+
+//&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&& public
+
+constructor TDefTwist.Create;
+begin
+     inherited;
+
+    _ImpObj := nil;
+     Angle  := DegToRad( 180 );
 end;
 
 //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$【ルーチン】
