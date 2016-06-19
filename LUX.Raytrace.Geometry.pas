@@ -55,11 +55,17 @@ type //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
 
      TRayImplicit = class( TRayGeometry )
      private
+       _RecLipC :Single;
+       ///// アクセス
+       function GetLipC :Single;
+       procedure SetLipC( const LipC_:Single );
      protected
        _IteraN :Integer;
        ///// メソッド
        function DistanceFunc( const P_:TdSingle3D ) :TdSingle; virtual; abstract;
        procedure _RayCast( var LocalRay_:TRayRay; var LocalHit_:TRayHit; const Len_:TSingleArea ); override;
+       ///// プロパティ
+       property LipC :Single read GetLipC write SetLipC;
      public
        constructor Create; override;
        ///// プロパティ
@@ -84,15 +90,27 @@ type //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
        property PipeR :Single read _PipeR write _PipeR;
      end;
 
-     //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TDefTwist
+     //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TDeformImp
 
-     TDefTwist = class( TRayImplicit )
+     TDeformImp = class( TRayImplicit )
      private
-       _Scale :TdSingle;
-       _LipsC :TdSingle;
      protected
        _ImpObj :TRayImplicit;
-       _Angle  :Single;
+     public
+       constructor Create; override;
+       ///// プロパティ
+       property ImpObj :TRayImplicit read _ImpObj write _ImpObj ;
+     end;
+
+     //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TDefTwist
+
+     TDefTwist = class( TDeformImp )
+     private
+       _Scale :Single;
+       ///// メソッド
+       procedure Update;
+     protected
+       _Angle :Single;
        ///// アクセス
        function GetLocalAABB :TSingleArea3D; override;
        procedure SetAngle( const Angle_:Single );
@@ -101,8 +119,36 @@ type //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
      public
        constructor Create; override;
        ///// プロパティ
-       property ImpObj :TRayImplicit read _ImpObj write _ImpObj ;
-       property Angle  :Single       read _Angle  write SetAngle;
+       property Angle :Single read _Angle write SetAngle;
+     end;
+
+     //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TDefTaper
+
+     TDefTaper = class( TDeformImp )
+     private
+       ///// メソッド
+       procedure Update;
+     protected
+       _BotY :Single; 
+       _TopY :Single;
+       _BotS :Single;
+       _TopS :Single;
+       ///// アクセス
+       function GetLocalAABB :TSingleArea3D; override;
+       procedure SetBotY( const BotY_:Single );
+       procedure SetTopY( const TopY_:Single );
+       procedure SetBotS( const BotS_:Single );
+       procedure SetTopS( const TopS_:Single );
+       ///// メソッド
+       function Deform( const Y_:TdSingle ) :TdSingle;
+       function DistanceFunc( const P_:TdSingle3D ) :TdSingle; override;
+     public
+       constructor Create; override;
+       ///// プロパティ
+       property BotY :Single read _BotY write SetBotY;
+       property TopY :Single read _TopY write SetTopY;
+       property BotS :Single read _BotS write SetBotS;
+       property TopS :Single read _TopS write SetTopS;
      end;
 
 //const //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$【定数】
@@ -261,17 +307,27 @@ end;
 
 //&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&& private
 
+/////////////////////////////////////////////////////////////////////// アクセス
+
+function TRayImplicit.GetLipC :Single;
+begin
+     Result := 1 / _RecLipC;
+end;
+
+procedure TRayImplicit.SetLipC( const LipC_:Single );
+begin
+     _RecLipC := 1 / LipC_;
+end;
+
 //&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&& protected
 
 /////////////////////////////////////////////////////////////////////// メソッド
 
 procedure TRayImplicit._RayCast( var LocalRay_:TRayRay; var LocalHit_:TRayHit; const Len_:TSingleArea );
 var
-   MinL,
-   D0, D1,
-   T0, T1 :Single;
+   MinL, C,
+   D0, D1 :Single;
    P0, P1 :TSingle3D;
-   S :TValueSign;
    N :Integer;
 begin
      if Len_.Min > 0 then MinL := Len_.Min
@@ -283,11 +339,9 @@ begin
 
           P0 := Tip;
 
-          D0 := DistanceFunc( P0 ).o;  S := Sign( D0 );
+          D0 := DistanceFunc( P0 ).o;  C := _RecLipC * Sign( D0 );
 
-          T0 := S * D0;
-
-          Len := Len + T0;
+          Len := Len + C * D0;
 
           for N := 2 to _IteraN do
           begin
@@ -297,11 +351,9 @@ begin
 
                D1 := DistanceFunc( P1 ).o;
 
-               T1 := S * D1;
+               Len := Len + C * D1;
 
-               Len := Len + T1;
-
-               if ( Abs( T1 ) < Abs( T0 ) ) and ( Abs( T1 ) < _EPSILON_ ) then
+               if ( Abs( D1 ) < Abs( D0 ) ) and ( Abs( D1 ) < _EPSILON_ ) then
                begin
                     with LocalHit_ do
                     begin
@@ -314,7 +366,7 @@ begin
                     Exit;
                end;
 
-               T0 := T1;
+               D0 := D1;
           end;
      end;
 end;
@@ -324,6 +376,8 @@ end;
 constructor TRayImplicit.Create;
 begin
      inherited;
+
+     LipC := 1;
 
      _IteraN := 1024;
 end;
@@ -371,9 +425,33 @@ begin
      _PipeR := 1;
 end;
 
+//%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TDeformImp
+
+//&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&& private
+
+//&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&& protected
+
+//&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&& public
+
+constructor TDeformImp.Create;
+begin
+     inherited;
+
+    _ImpObj := nil;
+end;
+
 //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TDefTwist
 
 //&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&& private
+
+/////////////////////////////////////////////////////////////////////// メソッド
+
+procedure TDefTwist.Update;
+begin
+     _Scale := _Angle / 4;
+
+     LipC := Roo2( 4 + Pow2( Pi / _Scale ) );
+end;
 
 //&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&& protected
 
@@ -387,7 +465,7 @@ var
 begin
      with _ImpObj.LocalAABB do
      begin
-          RanY := TSIngleArea.NeInf;
+          RanY := TSingleArea.NeInf;
           MaxR := 0;
           for I := 0 to 7 do
           begin
@@ -412,11 +490,7 @@ end;
 
 procedure TDefTwist.SetAngle( const Angle_:Single );
 begin
-     _Angle := Angle_;
-
-     _Scale := _Angle / 4;
-
-     _LipsC := Roo2( 4 + Pow2( Pi / _Scale ) );
+     _Angle := Angle_;  Update;
 end;
 
 /////////////////////////////////////////////////////////////////////// メソッド
@@ -432,7 +506,7 @@ begin
      P.Y := P_.Y;
      P.Z := P_.X * Sin( T ) + P_.Z * Cos( T );
 
-     Result := _ImpObj.DistanceFunc( P ) / _LipsC;
+     Result := _ImpObj.DistanceFunc( P );
 end;
 
 //&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&& public
@@ -441,8 +515,121 @@ constructor TDefTwist.Create;
 begin
      inherited;
 
-    _ImpObj := nil;
-     Angle  := DegToRad( 180 );
+     _Angle := DegToRad( 90 );
+
+     Update;
+end;
+
+//%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TDefTaper
+
+//&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&& private
+
+/////////////////////////////////////////////////////////////////////// メソッド
+
+procedure TDefTaper.Update;
+begin
+     LipC := Max( Deform( _BotY ).o, Deform( _TopY ).o );
+end;
+
+//&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&& protected
+
+/////////////////////////////////////////////////////////////////////// アクセス
+
+function TDefTaper.GetLocalAABB :TSingleArea3D;
+var
+   I :Integer;
+   S :Single;
+   P :TSingle3D;
+begin
+     Result := TSingleArea3D.NeInf;
+
+     with _ImpObj.LocalAABB do
+     begin
+          Result.Min.Y := Min.Y;
+          Result.Max.Y := Max.Y;
+
+          for I := 0 to 7 do
+          begin
+               with Poin[ I ] do
+               begin
+                    S := Deform( Y ).o;
+
+                    P.X := S * X;
+                    P.Y :=     Y;
+                    P.Z := S * Z;
+               end;
+
+               with Result, P do
+               begin
+                    if X < Min.X then Min.X := X;
+                    if Z < Min.Z then Min.Z := Z;
+
+                    if Max.X < X then Max.X := X;
+                    if Max.Z < Z then Max.Z := Z;
+               end;
+          end;
+     end;
+end;
+
+//------------------------------------------------------------------------------
+
+procedure TDefTaper.SetBotY( const BotY_:Single );
+begin
+     _BotY := BotY_;  Update;
+end;
+
+procedure TDefTaper.SetTopY( const TopY_:Single );
+begin
+     _TopY := TopY_;  Update;
+end;
+
+procedure TDefTaper.SetBotS( const BotS_:Single );
+begin
+     _BotS := BotS_;  Update;
+end;
+
+procedure TDefTaper.SetTopS( const TopS_:Single );
+begin
+     _TopS := TopS_;  Update;
+end;
+
+/////////////////////////////////////////////////////////////////////// メソッド
+
+function TDefTaper.Deform( const Y_:TdSingle ) :TdSingle;
+var
+   T :TdSingle;
+begin
+     T := ( Y_ - _BotY ) / ( _TopY - _BotY );
+
+     Result := 1 / ( ( _TopS - _BotS ) * T + _BotS );
+end;
+
+function TDefTaper.DistanceFunc( const P_:TdSingle3D ) :TdSingle;
+var
+   S :TdSingle;
+   P :TdSingle3D;
+begin
+     S := Deform( P_.Y );
+
+     P.X := S * P_.X;
+     P.Y :=     P_.Y;
+     P.Z := S * P_.Z;
+
+     Result := _ImpObj.DistanceFunc( P );
+end;
+
+//&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&& public
+
+constructor TDefTaper.Create;
+begin
+     inherited;
+
+     _BotY := -4;
+     _TopY := +4;
+     _BotS := 1.9;
+     _TopS := 0.1;
+
+     Update;
 end;
 
 //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$【ルーチン】
