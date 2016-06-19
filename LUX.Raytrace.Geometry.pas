@@ -151,6 +151,28 @@ type //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
        property TopS :Single read _TopS write SetTopS;
      end;
 
+     //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TRayWave
+
+     TRayWave = class( TRayImplicit )
+     private
+       _Const :Single;
+       ///// メソッド
+       procedure MakeFreqs;
+       procedure CalcLipC;
+     protected
+       _Freqs  :TArray2<TSingle3D>;
+       _FreqsN :Integer;
+       ///// アクセス
+       function GetLocalAABB :TSingleArea3D; override;
+       procedure SetFreqsN( const FreqsN_:Integer );
+       ///// メソッド
+       function DistanceFunc( const P_:TdSingle3D ) :TdSingle; override;
+     public
+       constructor Create; override;
+       ///// プロパティ
+       property FreqsN :Integer read _FreqsN write SetFreqsN;
+     end;
+
 //const //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$【定数】
 
 //var //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$【変数】
@@ -630,6 +652,111 @@ begin
      _TopS := 0.1;
 
      Update;
+end;
+
+//%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TRayWave
+
+//&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&& private
+
+/////////////////////////////////////////////////////////////////////// メソッド
+
+procedure TRayWave.MakeFreqs;
+var
+   X, Y :Integer;
+begin
+     SetLength( _Freqs, _FreqsN, _FreqsN );
+
+     for Y := 0 to _FreqsN-1 do
+     begin
+          for X := 0 to _FreqsN-1 do
+          begin
+               with _Freqs[ X, Y ] do
+               begin
+                    X := Pi2 * Random;
+                    Y := Pi2 * Random;
+
+                    Z := Random / ( ( X + 1 ) * ( Y + 1 ) );
+               end;
+          end;
+     end;
+
+     _Freqs[ 0, 0 ].Z := 0;
+end;
+
+procedure TRayWave.CalcLipC;
+var
+   D :Single;
+   X, Y :Integer;
+begin
+     D := 0;
+     for Y := 0 to _FreqsN-1 do
+     begin
+          for X := 0 to _FreqsN-1 do D := D + _Freqs[ X, Y ].Z * ( X + Y );
+     end;
+
+     _Const := Roo2( Pow2( Pi * D ) + 1 );
+end;
+
+//&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&& protected
+
+/////////////////////////////////////////////////////////////////////// アクセス
+
+function TRayWave.GetLocalAABB :TSingleArea3D;
+var
+   H :Single;
+   X, Y :Integer;
+begin
+     H := 0;
+     for Y := 0 to _FreqsN-1 do
+     begin
+          for X := 0 to _FreqsN-1 do H := H + _Freqs[ X, Y ].Z;
+     end;
+
+     Result := TSingleArea3D.Create( -1, -H, -1,
+                                     +1, +H, +1 );
+end;
+
+procedure TRayWave.SetFreqsN( const FreqsN_:Integer );
+begin
+     _FreqsN := FreqsN_;
+
+     MakeFreqs;
+     CalcLipC;
+end;
+
+/////////////////////////////////////////////////////////////////////// メソッド
+
+function TRayWave.DistanceFunc( const P_:TdSingle3D ) :TdSingle;
+var
+   H, Dd :TdSingle;
+   X, Y :Integer;
+   F :TSingle3D;
+begin
+     H := 0;
+     for Y := 0 to _FreqsN-1 do
+     begin
+          for X := 0 to _FreqsN-1 do
+          begin
+               F := _Freqs[ X, Y ];
+
+               H  := H  + F.Z * Sin( F.X + X * Pi * P_.X )
+                              * Sin( F.Y + Y * Pi * P_.Z );
+          end;
+     end;
+
+     Result := ( P_.Y - H ) / _Const;
+end;
+
+//&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&& public
+
+constructor TRayWave.Create;
+begin
+     inherited;
+
+     _FreqsN := 4;
+
+     MakeFreqs;
+     CalcLipC;
 end;
 
 //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$【ルーチン】
