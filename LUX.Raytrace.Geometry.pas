@@ -728,7 +728,7 @@ end;
 
 function TRayWave.DistanceFunc( const P_:TdSingle3D ) :TdSingle;
 var
-   H, Dd :TdSingle;
+   H :TdSingle;
    X, Y :Integer;
    F :TSingle3D;
 begin
