@@ -89,8 +89,8 @@ type //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
        procedure SetMaterial( const Material_:TRayMaterial ); virtual;
        ///// メソッド
        procedure _RayCast( var LocalRay_:TRayRay; var LocalHit_:TRayHit; const Len_:TSingleArea ); virtual;
+       procedure _RayTran( var LocalRay_:TRayRay; var LocalHit_:TRayHit; const Len_:TSingleArea ); virtual;
        procedure _RayJoin( var LocalRay_:TRayRay; var LocalHit_:TRayHit ); virtual;
-       function RayCastChilds( var WorldRay_:TRayRay; var WorldHit_:TRayHit ) :Boolean; virtual;
      public
        constructor Create; override;
        destructor Destroy; override;
@@ -106,7 +106,11 @@ type //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
        ///// メソッド
        function HitBoundBox( const WorldRay_:TRayRay; out Len_:TSingleArea ) :Boolean;
        function RayCast( var WorldRay_:TRayRay; var WorldHit_:TRayHit ) :Boolean; virtual;
+       function RayCastChilds( var WorldRay_:TRayRay; var WorldHit_:TRayHit ) :Boolean; virtual;
        function RayCasts( var WorldRay_:TRayRay; var WorldHit_:TRayHit ) :Boolean; virtual;
+       function RayTran( var WorldRay_:TRayRay; var WorldHit_:TRayHit ) :Boolean; virtual;
+       function RayTranChilds( var WorldRay_:TRayRay; var WorldHit_:TRayHit ) :Boolean; virtual;
+       function RayTrans( var WorldRay_:TRayRay; var WorldHit_:TRayHit ) :Boolean; virtual;
        function RayJoin( var WorldRay_:TRayRay; var WorldHit_:TRayHit ) :Boolean;
        function RayJoins( var WorldRay_:TRayRay; var WorldHit_:TRayHit ) :Boolean;
        function Raytrace( var WorldRay_:TRayRay ) :TSingleRGB; virtual;
@@ -477,19 +481,14 @@ begin
 
 end;
 
+procedure TRayGeometry._RayTran( var LocalRay_:TRayRay; var LocalHit_:TRayHit; const Len_:TSingleArea );
+begin
+     _RayCast( LocalRay_, LocalHit_, Len_ );
+end;
+
 procedure TRayGeometry._RayJoin( var LocalRay_:TRayRay; var LocalHit_:TRayHit );
 begin
 
-end;
-
-function TRayGeometry.RayCastChilds( var WorldRay_:TRayRay; var WorldHit_:TRayHit ) :Boolean;
-var
-   I :Integer;
-begin
-     Result := False;
-
-     for I := 0 to ChildsN-1
-     do Result := Childs[ I ].RayCasts( WorldRay_, WorldHit_ ) or Result;
 end;
 
 //&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&& public
@@ -553,6 +552,8 @@ begin
 
      with Len_ do Result := ( Min <= Max );
 end;
+
+//------------------------------------------------------------------------------
 
 function TRayGeometry.RayCast( var WorldRay_:TRayRay; var WorldHit_:TRayHit ) :Boolean;
 var
@@ -628,12 +629,117 @@ begin
      end;
 end;
 
+function TRayGeometry.RayCastChilds( var WorldRay_:TRayRay; var WorldHit_:TRayHit ) :Boolean;
+var
+   I :Integer;
+begin
+     Result := False;
+
+     for I := 0 to ChildsN-1
+     do Result := Childs[ I ].RayCasts( WorldRay_, WorldHit_ ) or Result;
+end;
+
 function TRayGeometry.RayCasts( var WorldRay_:TRayRay; var WorldHit_:TRayHit ) :Boolean;
 begin
      Result := RayCast( WorldRay_, WorldHit_ );
 
      Result := RayCastChilds( WorldRay_, WorldHit_ ) or Result;
 end;
+
+//------------------------------------------------------------------------------
+
+function TRayGeometry.RayTran( var WorldRay_:TRayRay; var WorldHit_:TRayHit ) :Boolean;
+var
+   L :TSingleArea;
+   A :TRayRay;
+   S :Single;
+   H :TRayHit;
+   M :TSingleM4;
+begin
+     Result := HitBoundBox( WorldRay_, L );
+
+     if Result then
+     begin
+          with A do
+          begin
+               Emt := nil;
+               Ord :=               WorldRay_.     Ord;
+               Ray := WorldMatriI * WorldRay_.ShiftRay;
+               Len := 0;
+               Hit := @H;
+
+               with Ray do
+               begin
+                    S := Vec.Size;
+
+                    Vec := Vec / S;
+               end;
+          end;
+
+          with H do
+          begin
+               Ray := @A;
+               Obj := nil;
+             //Nor
+             //Tan
+             //Bin
+             //Tex
+          end;
+
+          with L do
+          begin
+               Min := Min * S;
+               Max := Max * S;
+          end;
+
+          _RayTran( A, H, L );
+
+          Result := Assigned( H.Obj ) and ( A.Len < WorldRay_.Len * S );
+
+          if Result then
+          begin
+               with WorldRay_ do
+               begin
+                  //Emt
+                  //Ord
+                  //Ray
+                    Len := A.Len / S;
+                  //Hit
+               end;
+
+               M := H.Obj.WorldMatriI.Transpose;
+
+               with WorldHit_ do
+               begin
+                  //Ray
+                    Obj :=            H.Obj         ;
+                    Nor := M.MultVec( H.Nor ).Unitor;
+                    Tan := M.MultVec( H.Tan ).Unitor;
+                    Bin := M.MultVec( H.Bin ).Unitor;
+                    Tex :=            H.Tex         ;
+               end;
+          end;
+     end;
+end;
+
+function TRayGeometry.RayTranChilds( var WorldRay_:TRayRay; var WorldHit_:TRayHit ) :Boolean;
+var
+   I :Integer;
+begin
+     Result := False;
+
+     for I := 0 to ChildsN-1
+     do Result := Childs[ I ].RayTrans( WorldRay_, WorldHit_ ) or Result;
+end;
+
+function TRayGeometry.RayTrans( var WorldRay_:TRayRay; var WorldHit_:TRayHit ) :Boolean;
+begin
+     Result := RayTran( WorldRay_, WorldHit_ );
+
+     Result := RayTranChilds( WorldRay_, WorldHit_ ) or Result;
+end;
+
+//------------------------------------------------------------------------------
 
 function TRayGeometry.RayJoin( var WorldRay_:TRayRay; var WorldHit_:TRayHit ) :Boolean;
 var
@@ -693,8 +799,10 @@ end;
 
 function TRayGeometry.RayJoins( var WorldRay_:TRayRay; var WorldHit_:TRayHit ) :Boolean;
 begin
-     Result := RayJoin( WorldRay_, WorldHit_ ) and not World.RayCasts( WorldRay_, WorldHit_ );
+     Result := RayJoin( WorldRay_, WorldHit_ ) and not World.RayTrans( WorldRay_, WorldHit_ );
 end;
+
+//------------------------------------------------------------------------------
 
 function TRayGeometry.Raytrace( var WorldRay_:TRayRay ) :TSingleRGB;
 var
