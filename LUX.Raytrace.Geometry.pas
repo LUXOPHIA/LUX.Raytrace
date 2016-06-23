@@ -2,7 +2,7 @@
 
 interface //#################################################################### ■
 
-uses LUX, LUX.D1, LUX.D2, LUX.D3, LUX.Graph.Tree, LUX.Raytrace;
+uses LUX, LUX.D1, LUX.D2, LUX.D3, LUX.Map.D2, LUX.Graph.Tree, LUX.Raytrace;
 
 type //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$【型】
 
@@ -49,6 +49,27 @@ type //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
        constructor Create; override;
        ///// プロパティ
        property Radius :Single read _Radius write _Radius;
+     end;
+
+     //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TRayField
+
+     TRayField = class( TRayGeometry )
+     private
+       ///// メソッド
+       procedure MakeWave( const FreqsN_:Integer );
+     protected
+       _Grids :TGridArray2D<Single>;
+       ///// アクセス
+       function GetLocalAABB :TSingleArea3D; override;
+       ///// メソッド
+       function GridPoin( const X_,Y_:Integer ) :TSingle3D;
+       function HitSurface( const X_,Y_:Integer; var Ray_:TRayRay; var Hit_:TRayHit; const L0_,L1_:Single ) :Boolean;
+       procedure _RayCast( var LocalRay_:TRayRay; var LocalHit_:TRayHit; const Len_:TSingleArea ); override;
+     public
+       constructor Create; override;
+       destructor Destroy; override;
+       ///// プロパティ
+       property Grids :TGridArray2D<Single> read _Grids             ;
      end;
 
      //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TRayImplicit
@@ -323,6 +344,238 @@ begin
      inherited;
 
      _Radius := 1;
+end;
+
+//%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TRayField
+
+//&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&& private
+
+procedure TRayField.MakeWave( const FreqsN_:Integer );
+var
+   FX, FY, X, Y :Integer;
+   F :TSingle3D;
+   SX, SY :Single;
+begin
+     for FY := 0 to FreqsN_ do
+     for FX := 0 to FreqsN_ do
+     begin
+          if ( FX = 0 ) and ( FY = 0 ) then
+          begin
+               for Y := -1 to _Grids.GridY do
+               begin
+                    for X := -1 to _Grids.GridX do _Grids[ X, Y ] := X / _Grids.GridX;
+               end;
+          end
+          else
+          begin
+               F.X := Pi2 * Random;
+               F.Y := Pi2 * Random;
+               F.Z := 2 * Random / ( ( FX + 1 ) * ( FY + 1 ) );
+
+               for Y := -1 to _Grids.GridY do
+               begin
+                    SY := Sin( F.Y + Pi * FY * Y / _Grids.GridY-1 );
+
+                    for X := -1 to _Grids.GridX do
+                    begin
+                         SX := Sin( F.X + Pi * FX * X / _Grids.GridX-1 );
+
+                         _Grids[ X, Y ] := _Grids[ X, Y ] + F.Z * SX * SY;
+                    end;
+               end;
+          end;
+     end;
+end;
+
+//&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&& protected
+
+/////////////////////////////////////////////////////////////////////// アクセス
+
+function TRayField.GetLocalAABB :TSingleArea3D;
+var
+   SZ :TSingleArea;
+   X, Y :Integer;
+   Z :Single;
+begin
+     with _Grids do
+     begin
+          SZ := TSingleArea.NeMax;
+          for Y := 0 to GridX-1 do
+          begin
+               for X := 0 to GridX-1 do
+               begin
+                    Z := Grid[ X, Y ];
+
+                    if Z < SZ.Min then SZ.Min := Z;
+                    if SZ.Max < Z then SZ.Max := Z;
+               end;
+          end;
+
+          Result := TSingleArea3D.Create(  0   ,  0   , SZ.Min,
+                                          BricX, BricY, SZ.Max );
+     end;
+end;
+
+/////////////////////////////////////////////////////////////////////// メソッド
+
+function TRayField.GridPoin( const X_,Y_:Integer ) :TSingle3D;
+begin
+     with Result do
+     begin
+          X := X_;
+          Y := Y_;
+          Z := _Grids[ X_, Y_ ];
+     end;
+end;
+
+function TRayField.HitSurface( const X_,Y_:Integer; var Ray_:TRayRay; var Hit_:TRayHit; const L0_,L1_:Single ) :Boolean;
+var
+   G00, G01, G10, G11, N0, N1, C0, C1 :TSingle3D;
+   D0, D1 :Single;
+begin
+     G10 := GridPoin( X_+0, Y_+1 );  G11 := GridPoin( X_+1, Y_+1 );
+     G00 := GridPoin( X_+0, Y_+0 );  G01 := GridPoin( X_+1, Y_+0 );
+
+     N0 := CrossProduct( G00.VectorTo( G01 ), G00.VectorTo( G10 ) ).Unitor;
+     N1 := CrossProduct( G11.VectorTo( G10 ), G11.VectorTo( G01 ) ).Unitor;
+
+     D0 := DotProduct( N0, G00 );
+     D1 := DotProduct( N1, G11 );
+
+     Result := False;
+
+     Ray_.Len := ( D0 - DotProduct( Ray_.Ray.Pos, N0 ) ) / DotProduct( Ray_.Ray.Vec, N0 );
+
+     if ( Ray_.Len < L0_ ) or ( L1_ < Ray_.Len ) then Exit;
+
+     C0 := Ray_.Tip;
+
+     if ( X_+0 <= C0.X ) and ( C0.X <= X_+1 ) and
+        ( Y_+0 <= C0.Y ) and ( C0.Y <= Y_+1 ) and
+        ( C0.X + C0.Y <= X_ + Y_ + 1 ) then
+     begin
+          Result := True;
+
+          Hit_.Nor := N0;
+
+          Exit;
+     end;
+
+     Ray_.Len := ( D1 - DotProduct( Ray_.Ray.Pos, N1 ) ) / DotProduct( Ray_.Ray.Vec, N1 );
+
+     if ( Ray_.Len < L0_ ) or ( L1_ < Ray_.Len ) then Exit;
+
+     C1 := Ray_.Tip;
+
+     if ( X_+0 <= C1.X ) and ( C1.X <= X_+1 ) and
+        ( Y_+0 <= C1.Y ) and ( C1.Y <= Y_+1 ) and
+        ( X_ + Y_ + 1 <= C1.X + C1.Y ) then
+     begin
+          Result := True;
+
+          Hit_.Nor := N1;
+
+          Exit;
+     end;
+end;
+
+procedure TRayField._RayCast( var LocalRay_:TRayRay; var LocalHit_:TRayHit; const Len_:TSingleArea );
+var
+   P, P0, P1, G00, G01, G10, G11 :TSingle3D;
+   T, dT :TSingle2D;
+   I0, I1, dI :TInteger2D;
+   L0, L1, Z :Single;
+begin
+     L0 := Max( 0, Len_.Min ) + 0.01;
+
+     with LocalRay_.Ray do
+     begin
+          dI.X := Sign( Vec.X );
+          dI.Y := Sign( Vec.Y );
+
+          dT.X := dI.X / Vec.X;
+          dT.Y := dI.Y / Vec.Y;
+
+          P := GoPos( L0 );
+
+          if dI.X < 0 then
+          begin
+               I0.X := Ceil( P.X ) - 1;
+
+               T .X := L0 + ( I0.X   - P.X ) / Vec.X;
+          end
+          else
+          begin
+               I0.X := Floor( P.X );
+
+               T .X := L0 + ( I0.X+1 - P.X ) / Vec.X;
+          end;
+
+          if dI.Y < 0 then
+          begin
+               I0.Y := Ceil( P.Y ) - 1;
+
+               T .Y := L0 + ( I0.Y   - P.Y ) / Vec.Y;
+          end
+          else
+          begin
+               I0.Y := Floor( P.Y );
+
+               T .Y := L0 + ( I0.Y+1 - P.Y ) / Vec.Y;
+          end;
+     end;
+
+     while ( 0 <= I0.X ) and ( I0.X < _Grids.BricX )
+       and ( 0 <= I0.Y ) and ( I0.Y < _Grids.BricY )
+       and ( L0 < Len_.Max ) do
+     begin
+          if T.X < T.Y then
+          begin
+               L1 := T.X;
+
+               T .X := T .X + dT.X;
+
+               I1.X := I0.X + dI.X;
+               I1.Y := I0.Y       ;
+          end
+          else
+          if T.X > T.Y then
+          begin
+               L1 := T.Y;
+
+               T .Y := T .Y + dT.Y;
+
+               I1.X := I0.X       ;
+               I1.Y := I0.Y + dI.Y;
+          end
+          else Exit;
+
+          if HitSurface( I0.X, I0.Y, LocalRay_, LocalHit_, L0, L1 ) then
+          begin
+               LocalHit_.Obj := Self;
+
+               Exit;
+          end;
+
+          L0 := L1;
+          I0 := I1;
+     end;
+end;
+
+//&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&& public
+
+constructor TRayField.Create;
+begin
+     inherited;
+
+     _Grids := TGridArray2D<Single>.Create( 100, 100, 1, 1 );
+
+     MakeWave( 4 );
+end;
+
+destructor TRayField.Destroy;
+begin
+     _Grids.Free;
 end;
 
 //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% TRayImplicit
@@ -739,8 +992,8 @@ begin
           begin
                F := _Freqs[ X, Y ];
 
-               H  := H  + F.Z * Sin( F.X + X * Pi * P_.X )
-                              * Sin( F.Y + Y * Pi * P_.Z );
+               H := H + F.Z * Sin( F.X + X * Pi * P_.X )
+                            * Sin( F.Y + Y * Pi * P_.Z );
           end;
      end;
 
